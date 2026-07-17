@@ -638,4 +638,476 @@ Route::middleware(['auth'])->group(function () {
         Route::delete('/api/chat/admin/rules/{id}', [ChatController::class, 'removeChatRule']);
         Route::post('/api/chat/admin/delete-permission', [ChatController::class, 'toggleDeletePermission']);
     });
+
+    /*
+    |--------------------------------------------------------------------------
+    | GST Invoicing & Billing Module Routes
+    |--------------------------------------------------------------------------
+    */
+    /*
+    |--------------------------------------------------------------------------
+    | GST Invoicing & Billing Module Routes (PO, SO, Bills & Invoices)
+    |--------------------------------------------------------------------------
+    */
+    Route::get('/api/billing/items', function () {
+        $user = Auth::user();
+        $items = DB::table('inventory_items')
+            ->where('company_id', $user->company_id)
+            ->where('status', '!=', 'Out of Stock')
+            ->get();
+        return response()->json($items);
+    });
+
+    Route::get('/api/billing/contacts/{docType}', function ($docType) {
+        $user = Auth::user();
+        $isPurchase = in_array($docType, ['purchase-orders', 'purchase-invoices']);
+        if ($isPurchase) {
+            $vendors = DB::table('vendors')
+                ->where('company_id', $user->company_id)
+                ->where('status', 'Active')
+                ->get();
+            return response()->json($vendors);
+        } else {
+            $customers = DB::table('customers')
+                ->where('company_id', $user->company_id)
+                ->where('status', 'Active')
+                ->get();
+            return response()->json($customers);
+        }
+    });
+
+    Route::get('/api/billing/{docType}/data', function ($docType) {
+        $user = Auth::user();
+        
+        $config = [
+            'sales-invoices' => ['table' => 'sales_invoices', 'join' => 'customers', 'join_key' => 'customer_id', 'no' => 'invoice_no'],
+            'sales-orders' => ['table' => 'sales_orders', 'join' => 'customers', 'join_key' => 'customer_id', 'no' => 'order_no'],
+            'purchase-orders' => ['table' => 'purchase_orders', 'join' => 'vendors', 'join_key' => 'vendor_id', 'no' => 'po_no'],
+            'purchase-invoices' => ['table' => 'purchase_invoices', 'join' => 'vendors', 'join_key' => 'vendor_id', 'no' => 'bill_no'],
+            'sales-quotations' => ['table' => 'sales_quotations', 'join' => 'customers', 'join_key' => 'customer_id', 'no' => 'quote_no'],
+        ];
+
+        if (!isset($config[$docType])) {
+            return response()->json(['error' => 'Invalid document type'], 404);
+        }
+
+        $cfg = $config[$docType];
+        $dateCol = ($docType === 'purchase-invoices') ? 'bill_date' : (($docType === 'sales-orders') ? 'order_date' : (($docType === 'purchase-orders') ? 'po_date' : (($docType === 'sales-quotations') ? 'quote_date' : 'invoice_date')));
+        
+        $records = DB::table($cfg['table'])
+            ->leftJoin($cfg['join'], "{$cfg['table']}.{$cfg['join_key']}", '=', "{$cfg['join']}.id")
+            ->where("{$cfg['table']}.company_id", $user->company_id)
+            ->select(
+                "{$cfg['table']}.*", 
+                "{$cfg['join']}.name as contact_name",
+                "{$cfg['join']}.state as contact_state",
+                "{$cfg['join']}.gstin as contact_gstin",
+                "{$cfg['table']}.{$cfg['no']} as document_no",
+                "{$cfg['table']}.{$dateCol} as document_date"
+            )
+            ->orderBy("{$cfg['table']}.created_at", 'desc')
+            ->get();
+
+        return response()->json(['data' => $records]);
+    });
+
+    Route::get('/api/billing/{docType}/invoice/{id}', function ($docType, $id) {
+        $user = Auth::user();
+        
+        $config = [
+            'sales-invoices' => ['table' => 'sales_invoices', 'items_table' => 'sales_invoice_items', 'fk' => 'sales_invoice_id', 'join' => 'customers', 'join_key' => 'customer_id'],
+            'sales-orders' => ['table' => 'sales_orders', 'items_table' => 'sales_order_items', 'fk' => 'sales_order_id', 'join' => 'customers', 'join_key' => 'customer_id'],
+            'purchase-orders' => ['table' => 'purchase_orders', 'items_table' => 'purchase_order_items', 'fk' => 'purchase_order_id', 'join' => 'vendors', 'join_key' => 'vendor_id'],
+            'purchase-invoices' => ['table' => 'purchase_invoices', 'items_table' => 'purchase_invoice_items', 'fk' => 'purchase_invoice_id', 'join' => 'vendors', 'join_key' => 'vendor_id'],
+            'sales-quotations' => ['table' => 'sales_quotations', 'items_table' => 'sales_quotation_items', 'fk' => 'sales_quotation_id', 'join' => 'customers', 'join_key' => 'customer_id'],
+        ];
+
+        if (!isset($config[$docType])) {
+            return response()->json(['error' => 'Invalid document type'], 404);
+        }
+
+        $cfg = $config[$docType];
+        $invoice = DB::table($cfg['table'])
+            ->where('id', $id)
+            ->where('company_id', $user->company_id)
+            ->first();
+        
+        if (!$invoice) {
+            return response()->json(['error' => 'Document not found'], 404);
+        }
+
+        $contact = DB::table($cfg['join'])->where('id', $invoice->{$cfg['join_key']})->first();
+        
+        $items = DB::table($cfg['items_table'])
+            ->join('inventory_items', "{$cfg['items_table']}.inventory_item_id", '=', 'inventory_items.id')
+            ->where("{$cfg['items_table']}.{$cfg['fk']}", $id)
+            ->select("{$cfg['items_table']}.*", 'inventory_items.name as item_name')
+            ->get();
+
+        return response()->json([
+            'invoice' => $invoice,
+            'contact' => $contact,
+            'items' => $items
+        ]);
+    });
+
+    Route::post('/api/billing/{docType}/invoice/store', function (Request $request, $docType) {
+        $user = Auth::user();
+        $data = $request->validate([
+            'contact_id' => 'required|integer',
+            'document_date' => 'required|date',
+            'due_date' => 'required|date',
+            'billing_address' => 'required|string',
+            'payment_terms' => 'nullable|string',
+            'items' => 'required|array',
+            'items.*.inventory_item_id' => 'required|integer',
+            'items.*.qty' => 'required|integer|min:1',
+            'items.*.unit_price' => 'required|numeric|min:0',
+        ]);
+
+        $config = [
+            'sales-invoices' => ['table' => 'sales_invoices', 'items_table' => 'sales_invoice_items', 'fk' => 'sales_invoice_id', 'join' => 'customers', 'join_key' => 'customer_id', 'no' => 'invoice_no', 'prefix' => 'INV'],
+            'sales-orders' => ['table' => 'sales_orders', 'items_table' => 'sales_order_items', 'fk' => 'sales_order_id', 'join' => 'customers', 'join_key' => 'customer_id', 'no' => 'order_no', 'prefix' => 'SO'],
+            'purchase-orders' => ['table' => 'purchase_orders', 'items_table' => 'purchase_order_items', 'fk' => 'purchase_order_id', 'join' => 'vendors', 'join_key' => 'vendor_id', 'no' => 'po_no', 'prefix' => 'PO'],
+            'purchase-invoices' => ['table' => 'purchase_invoices', 'items_table' => 'purchase_invoice_items', 'fk' => 'purchase_invoice_id', 'join' => 'vendors', 'join_key' => 'vendor_id', 'no' => 'bill_no', 'prefix' => 'BILL'],
+            'sales-quotations' => ['table' => 'sales_quotations', 'items_table' => 'sales_quotation_items', 'fk' => 'sales_quotation_id', 'join' => 'customers', 'join_key' => 'customer_id', 'no' => 'quote_no', 'prefix' => 'QTN'],
+        ];
+
+        if (!isset($config[$docType])) {
+            return response()->json(['error' => 'Invalid document type'], 404);
+        }
+
+        $cfg = $config[$docType];
+
+        // Generate document number
+        $year = date('Y', strtotime($data['document_date']));
+        $count = DB::table($cfg['table'])->whereYear('created_at', $year)->count();
+        $docNo = $cfg['prefix'] . '/' . $year . '/' . str_pad($count + 1, 4, '0', STR_PAD_LEFT);
+
+        // Retrieve company and contact
+        $company = DB::table('companies')->where('id', $user->company_id)->first();
+        $contact = DB::table($cfg['join'])->where('id', $data['contact_id'])->first();
+
+        if (!$company || !$contact) {
+            return response()->json(['error' => 'Company or Contact not found'], 422);
+        }
+
+        // Determine transaction tax (Intra-state vs Inter-state)
+        $companyState = trim(strtolower($company->state ?? 'maharashtra'));
+        $contactState = trim(strtolower($contact->state ?? 'maharashtra'));
+        $isIntraState = ($companyState === $contactState);
+
+        $subtotalAmt = 0;
+        $cgstAmtTotal = 0;
+        $sgstAmtTotal = 0;
+        $igstAmtTotal = 0;
+        $grandTotalAmt = 0;
+
+        $lineItemsToSave = [];
+
+        try {
+            return DB::transaction(function () use ($user, $data, $docNo, $docType, $isIntraState, $cfg, &$lineItemsToSave, &$subtotalAmt, &$cgstAmtTotal, &$sgstAmtTotal, &$igstAmtTotal, &$grandTotalAmt) {
+                foreach ($data['items'] as $itemInput) {
+                    $invItem = DB::table('inventory_items')
+                        ->where('id', $itemInput['inventory_item_id'])
+                        ->first();
+
+                    if (!$invItem) {
+                        throw new \Exception('Product item not found.');
+                    }
+
+                    // Stock operations check
+                    if ($docType === 'sales-invoices') {
+                        if ($invItem->qty_on_hand < $itemInput['qty']) {
+                            throw new \Exception("Insufficient stock for item: {$invItem->name}. Available stock: {$invItem->qty_on_hand}.");
+                        }
+                    }
+
+                    $lineSubtotal = $itemInput['qty'] * $itemInput['unit_price'];
+                    $taxRate = $invItem->tax_rate ?? 18.00;
+
+                    $cgstRate = 0.00;
+                    $cgstAmt = 0.00;
+                    $sgstRate = 0.00;
+                    $sgstAmt = 0.00;
+                    $igstRate = 0.00;
+                    $igstAmt = 0.00;
+
+                    if ($isIntraState) {
+                       $cgstRate = $taxRate / 2;
+                       $cgstAmt = round(($lineSubtotal * $cgstRate) / 100, 2);
+                       $sgstRate = $taxRate / 2;
+                       $sgstAmt = round(($lineSubtotal * $sgstRate) / 100, 2);
+                    } else {
+                       $igstRate = $taxRate;
+                       $igstAmt = round(($lineSubtotal * $igstRate) / 100, 2);
+                    }
+
+                    $lineTotal = $lineSubtotal + $cgstAmt + $sgstAmt + $igstAmt;
+
+                    // Stock adjustments
+                    if ($docType === 'sales-invoices') {
+                        // Decrement stock
+                        $newQty = $invItem->qty_on_hand - $itemInput['qty'];
+                        $status = 'In Stock';
+                        if ($newQty <= 0) {
+                            $status = 'Out of Stock';
+                        } else if ($newQty <= $invItem->reorder_level) {
+                            $status = 'Low Stock';
+                        }
+                        DB::table('inventory_items')->where('id', $invItem->id)->update([
+                            'qty_on_hand' => $newQty,
+                            'status' => $status,
+                            'updated_at' => now()
+                        ]);
+                    } else if ($docType === 'purchase-invoices') {
+                        // Increment stock
+                        $newQty = $invItem->qty_on_hand + $itemInput['qty'];
+                        $status = 'In Stock';
+                        if ($newQty <= $invItem->reorder_level) {
+                            $status = 'Low Stock';
+                        }
+                        DB::table('inventory_items')->where('id', $invItem->id)->update([
+                            'qty_on_hand' => $newQty,
+                            'status' => $status,
+                            'updated_at' => now()
+                        ]);
+                    }
+
+                    $lineItemsToSave[] = [
+                        'inventory_item_id' => $invItem->id,
+                        'hsn_sac' => $invItem->hsn_sac,
+                        'qty' => $itemInput['qty'],
+                        'unit_price' => $itemInput['unit_price'],
+                        'subtotal' => $lineSubtotal,
+                        'cgst_rate' => $cgstRate,
+                        'cgst_amount' => $cgstAmt,
+                        'sgst_rate' => $sgstRate,
+                        'sgst_amount' => $sgstAmt,
+                        'igst_rate' => $igstRate,
+                        'igst_amount' => $igstAmt,
+                        'total_amount' => $lineTotal,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ];
+
+                    $subtotalAmt += $lineSubtotal;
+                    $cgstAmtTotal += $cgstAmt;
+                    $sgstAmtTotal += $sgstAmt;
+                    $igstAmtTotal += $igstAmt;
+                    $grandTotalAmt += $lineTotal;
+                }
+
+                $dateCol = ($docType === 'purchase-invoices') ? 'bill_date' : (($docType === 'sales-orders') ? 'order_date' : (($docType === 'purchase-orders') ? 'po_date' : (($docType === 'sales-quotations') ? 'quote_date' : 'invoice_date')));
+
+                $headerData = [
+                    'company_id' => $user->company_id,
+                    'branch_id' => $user->branch_id,
+                    $cfg['no'] => $docNo,
+                    $cfg['join_key'] => $data['contact_id'],
+                    $dateCol => $data['document_date'],
+                    'amount' => $subtotalAmt,
+                    'tax' => $cgstAmtTotal + $sgstAmtTotal + $igstAmtTotal,
+                    'cgst' => $cgstAmtTotal,
+                    'sgst' => $sgstAmtTotal,
+                    'igst' => $igstAmtTotal,
+                    'discount' => 0.00,
+                    'total_amount' => $grandTotalAmt,
+                    'billing_address' => $data['billing_address'],
+                    'payment_terms' => $data['payment_terms'],
+                    'status' => 'Approved',
+                    'created_at' => now(),
+                    'updated_at' => now()
+                ];
+
+                if ($docType === 'sales-orders' || $docType === 'purchase-orders') {
+                    $headerData['delivery_date'] = $data['due_date'];
+                    $headerData['shipping_address'] = $data['billing_address'];
+                    $headerData['status'] = 'Sent';
+                } else if ($docType === 'sales-quotations') {
+                    $headerData['valid_until'] = $data['due_date'];
+                    $headerData['status'] = 'Sent';
+                } else {
+                    $headerData['due_date'] = $data['due_date'];
+                }
+
+                // Insert header record
+                $docId = DB::table($cfg['table'])->insertGetId($headerData);
+
+                // Insert line items
+                foreach ($lineItemsToSave as &$line) {
+                    $line[$cfg['fk']] = $docId;
+                    DB::table($cfg['items_table'])->insert($line);
+                }
+
+                return response()->json(['success' => true, 'invoice_id' => $docId, 'invoice_no' => $docNo]);
+            });
+        } catch (\Exception $e) {
+            return response()->json(['error' => $e->getMessage()], 422);
+        }
+    });
+
+    Route::delete('/api/billing/{docType}/invoice/destroy/{id}', function ($docType, $id) {
+        $user = Auth::user();
+        
+        $config = [
+            'sales-invoices' => ['table' => 'sales_invoices', 'items_table' => 'sales_invoice_items', 'fk' => 'sales_invoice_id'],
+            'sales-orders' => ['table' => 'sales_orders', 'items_table' => 'sales_order_items', 'fk' => 'sales_order_id'],
+            'purchase-orders' => ['table' => 'purchase_orders', 'items_table' => 'purchase_order_items', 'fk' => 'purchase_order_id'],
+            'purchase-invoices' => ['table' => 'purchase_invoices', 'items_table' => 'purchase_invoice_items', 'fk' => 'purchase_invoice_id'],
+            'sales-quotations' => ['table' => 'sales_quotations', 'items_table' => 'sales_quotation_items', 'fk' => 'sales_quotation_id'],
+        ];
+
+        if (!isset($config[$docType])) {
+            return response()->json(['error' => 'Invalid document type'], 404);
+        }
+
+        $cfg = $config[$docType];
+        $invoice = DB::table($cfg['table'])
+            ->where('id', $id)
+            ->where('company_id', $user->company_id)
+            ->first();
+
+        if (!$invoice) {
+            return response()->json(['error' => 'Document not found'], 404);
+        }
+
+        try {
+            return DB::transaction(function () use ($id, $docType, $cfg, $invoice) {
+                // Restore stock levels
+                $items = DB::table($cfg['items_table'])
+                    ->where($cfg['fk'], $id)
+                    ->get();
+
+                foreach ($items as $item) {
+                    $invItem = DB::table('inventory_items')->where('id', $item->inventory_item_id)->first();
+                    if ($invItem) {
+                        $newQty = $invItem->qty_on_hand;
+                        if ($docType === 'sales-invoices') {
+                            $newQty = $invItem->qty_on_hand + $item->qty; // restore subtracted
+                        } else if ($docType === 'purchase-invoices') {
+                            $newQty = $invItem->qty_on_hand - $item->qty; // reverse added
+                        }
+
+                        $status = 'In Stock';
+                        if ($newQty <= 0) {
+                            $status = 'Out of Stock';
+                        } else if ($newQty <= $invItem->reorder_level) {
+                            $status = 'Low Stock';
+                        }
+
+                        DB::table('inventory_items')
+                            ->where('id', $invItem->id)
+                            ->update([
+                                'qty_on_hand' => $newQty,
+                                'status' => $status,
+                                'updated_at' => now()
+                            ]);
+                    }
+                }
+
+                // Delete child items and parent header
+                DB::table($cfg['items_table'])->where($cfg['fk'], $id)->delete();
+                DB::table($cfg['table'])->where('id', $id)->delete();
+
+                return response()->json(['success' => true]);
+            });
+        } catch (\Exception $e) {
+            return response()->json(['error' => $e->getMessage()], 422);
+        }
+    });
+
+    Route::post('/api/billing/{docType}/invoice/pay/{id}', function ($docType, $id) {
+        $user = Auth::user();
+        $table = str_replace('-', '_', $docType);
+        if ($docType === 'purchase-invoices') {
+            $table = 'purchase_invoices';
+        }
+        
+        $status = in_array($docType, ['sales-orders', 'purchase-orders']) ? 'Closed' : (($docType === 'sales-quotations') ? 'Accepted' : 'Paid');
+
+        DB::table($table)
+            ->where('id', $id)
+            ->where('company_id', $user->company_id)
+            ->update(['status' => $status, 'updated_at' => now()]);
+
+        return response()->json(['success' => true]);
+    });
+
+    Route::get('/erp/{docType}/print/{id}', function ($docType, $id) {
+        $user = Auth::user();
+        
+        $config = [
+            'sales-invoices' => ['table' => 'sales_invoices', 'items_table' => 'sales_invoice_items', 'fk' => 'sales_invoice_id', 'join' => 'customers', 'join_key' => 'customer_id', 'no' => 'invoice_no', 'title' => 'Tax Invoice'],
+            'sales-orders' => ['table' => 'sales_orders', 'items_table' => 'sales_order_items', 'fk' => 'sales_order_id', 'join' => 'customers', 'join_key' => 'customer_id', 'no' => 'order_no', 'title' => 'Sales Order Confirmation'],
+            'purchase-orders' => ['table' => 'purchase_orders', 'items_table' => 'purchase_order_items', 'fk' => 'purchase_order_id', 'join' => 'vendors', 'join_key' => 'vendor_id', 'no' => 'po_no', 'title' => 'Purchase Order'],
+            'purchase-invoices' => ['table' => 'purchase_invoices', 'items_table' => 'purchase_invoice_items', 'fk' => 'purchase_invoice_id', 'join' => 'vendors', 'join_key' => 'vendor_id', 'no' => 'bill_no', 'title' => 'Vendor Bill'],
+            'sales-quotations' => ['table' => 'sales_quotations', 'items_table' => 'sales_quotation_items', 'fk' => 'sales_quotation_id', 'join' => 'customers', 'join_key' => 'customer_id', 'no' => 'quote_no', 'title' => 'Sales Quotation'],
+        ];
+
+        if (!isset($config[$docType])) {
+            abort(404, 'Invalid document type.');
+        }
+
+        $cfg = $config[$docType];
+        $invoice = DB::table($cfg['table'])
+            ->where('id', $id)
+            ->where('company_id', $user->company_id)
+            ->first();
+
+        if (!$invoice) {
+            abort(404, 'Document not found.');
+        }
+
+        $company = DB::table('companies')->where('id', $invoice->company_id)->first();
+        $contact = DB::table($cfg['join'])->where('id', $invoice->{$cfg['join_key']})->first();
+        
+        $items = DB::table($cfg['items_table'])
+            ->join('inventory_items', "{$cfg['items_table']}.inventory_item_id", '=', 'inventory_items.id')
+            ->where("{$cfg['items_table']}.{$cfg['fk']}", $id)
+            ->select("{$cfg['items_table']}.*", 'inventory_items.name as item_name')
+            ->get();
+
+        // Convert total amount to words helper function
+        $numberToWords = function ($number) {
+            $decimal = round($number - ($no = floor($number)), 2) * 100;
+            $hundred = null;
+            $digits_length = strlen($no);
+            $i = 0;
+            $str = array();
+            $words = array(
+                0 => '', 1 => 'One', 2 => 'Two',
+                3 => 'Three', 4 => 'Four', 5 => 'Five',
+                6 => 'Six', 7 => 'Seven', 8 => 'Eight',
+                9 => 'Nine', 10 => 'Ten', 11 => 'Eleven',
+                12 => 'Twelve', 13 => 'Thirteen', 14 => 'Fourteen',
+                15 => 'Fifteen', 16 => 'Sixteen', 17 => 'Seventeen',
+                18 => 'Eighteen', 19 => 'Nineteen', 20 => 'Twenty',
+                30 => 'Thirty', 40 => 'Forty', 50 => 'Fifty',
+                60 => 'Sixty', 70 => 'Seventy', 80 => 'Eighty',
+                90 => 'Ninety'
+            );
+            $digits = array('', 'Hundred','Thousand','Lakh', 'Crore');
+            while( $i < $digits_length ) {
+                $divider = ($i == 2) ? 10 : 100;
+                $number = floor($no % $divider);
+                $no = floor($no / $divider);
+                $i += $divider == 10 ? 1 : 2;
+                if ($number) {
+                    $plural = (($counter = count($str)) && $number > 9) ? 's' : null;
+                    $hundred = ($counter == 1 && $str[0]) ? ' and ' : null;
+                    $str [] = ($number < 21) ? $words[$number].' '. $digits[$counter].$plural.' '.$hundred:$words[floor($number / 10) * 10].' '.$words[$number % 10]. ' '.$digits[$counter].$plural.' '.$hundred;
+                } else $str[] = null;
+            }
+            $Rupees = implode('', array_reverse($str));
+            $Paise = ($decimal > 0) ? "." . ($words[$decimal] ?? $words[floor($decimal / 10) * 10] . " " . $words[$decimal % 10]) . ' Paise' : '';
+            return ($Rupees ? $Rupees . 'Rupees ' : '') . $Paise . ' Only';
+        };
+
+        $totalInWords = $numberToWords($invoice->total_amount);
+        $docTitle = $cfg['title'];
+        $docNoKey = $cfg['no'];
+
+        return view('modules.sales_billing.print', compact('invoice', 'company', 'contact', 'items', 'totalInWords', 'docTitle', 'docNoKey', 'docType'));
+    });
 });

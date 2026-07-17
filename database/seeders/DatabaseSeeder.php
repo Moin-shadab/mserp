@@ -15,6 +15,10 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
+        // Self-heal billing and email tables before seeding
+        app(\App\Http\Controllers\DynamicCrudController::class)->ensureBillingTablesExist();
+        app(\App\Http\Controllers\EmailController::class)->ensureEmailTablesExist();
+
         // 1. Companies
         $acmeId = DB::table('companies')->insertGetId([
             'name' => 'Acme Corporation (India)',
@@ -23,6 +27,12 @@ class DatabaseSeeder extends Seeder
             'address' => 'Express Towers, Nariman Point, Mumbai, MH 400021',
             'phone' => '+91 22 5550 1999',
             'email' => 'finance@acme-india.in',
+            'gstin' => '27AAACA1234A1Z5',
+            'state' => 'Maharashtra',
+            'pan' => 'AAACA1234A',
+            'bank_name' => 'HDFC Bank Ltd',
+            'bank_acc_no' => '50100203495834',
+            'bank_ifsc' => 'HDFC0000060',
             'created_at' => now(),
             'updated_at' => now(),
         ]);
@@ -336,9 +346,90 @@ class DatabaseSeeder extends Seeder
                     ['value' => 'Paid', 'label' => 'Paid']
                 ]]
             ]),
-            'is_custom' => false,
+            'is_custom' => true,
+            'custom_view' => 'modules/sales_billing',
             'is_active' => true,
             'icon' => 'bi-receipt',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        // Page B.0: Sales Quotations CRUD
+        $pageSalesQuotationId = DB::table('pages')->insertGetId([
+            'module_id' => $modErp,
+            'name' => 'Sales Quotations',
+            'slug' => 'sales-quotations',
+            'token' => 'QTN-100',
+            'title' => 'Sales Quotations & Estimates',
+            'db_table' => 'sales_quotations',
+            'primary_key' => 'id',
+            'sql_query' => 'SELECT sales_quotations.id, sales_quotations.quote_no, customers.name as customer_name, sales_quotations.quote_date, sales_quotations.total_amount, sales_quotations.status FROM sales_quotations LEFT JOIN customers ON sales_quotations.customer_id = customers.id',
+            'grid_schema' => json_encode([]),
+            'form_schema' => json_encode([]),
+            'is_custom' => true,
+            'custom_view' => 'modules/sales_billing',
+            'is_active' => true,
+            'icon' => 'bi-file-earmark-text',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        // Page B.1: Sales Orders CRUD
+        $pageSalesOrderId = DB::table('pages')->insertGetId([
+            'module_id' => $modErp,
+            'name' => 'Sales Orders',
+            'slug' => 'sales-orders',
+            'token' => 'SO-300',
+            'title' => 'Sales Orders Confirmations',
+            'db_table' => 'sales_orders',
+            'primary_key' => 'id',
+            'sql_query' => 'SELECT sales_orders.id, sales_orders.order_no, customers.name as customer_name, sales_orders.order_date, sales_orders.total_amount, sales_orders.status FROM sales_orders LEFT JOIN customers ON sales_orders.customer_id = customers.id',
+            'grid_schema' => json_encode([]),
+            'form_schema' => json_encode([]),
+            'is_custom' => true,
+            'custom_view' => 'modules/sales_billing',
+            'is_active' => true,
+            'icon' => 'bi-cart-check',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        // Page B.2: Purchase Orders CRUD
+        $pagePurchaseOrderId = DB::table('pages')->insertGetId([
+            'module_id' => $modErp,
+            'name' => 'Purchase Orders',
+            'slug' => 'purchase-orders',
+            'token' => 'PO-400',
+            'title' => 'Purchase Orders to Vendors',
+            'db_table' => 'purchase_orders',
+            'primary_key' => 'id',
+            'sql_query' => 'SELECT purchase_orders.id, purchase_orders.po_no, vendors.name as vendor_name, purchase_orders.po_date, purchase_orders.total_amount, purchase_orders.status FROM purchase_orders LEFT JOIN vendors ON purchase_orders.vendor_id = vendors.id',
+            'grid_schema' => json_encode([]),
+            'form_schema' => json_encode([]),
+            'is_custom' => true,
+            'custom_view' => 'modules/sales_billing',
+            'is_active' => true,
+            'icon' => 'bi-file-earmark-arrow-down',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        // Page B.3: Vendor Bills CRUD
+        $pagePurchaseInvoiceId = DB::table('pages')->insertGetId([
+            'module_id' => $modErp,
+            'name' => 'Vendor Bills',
+            'slug' => 'purchase-invoices',
+            'token' => 'BILL-500',
+            'title' => 'Vendor Bills & Receipts',
+            'db_table' => 'purchase_invoices',
+            'primary_key' => 'id',
+            'sql_query' => 'SELECT purchase_invoices.id, purchase_invoices.bill_no, vendors.name as vendor_name, purchase_invoices.bill_date, purchase_invoices.total_amount, purchase_invoices.status FROM purchase_invoices LEFT JOIN vendors ON purchase_invoices.vendor_id = vendors.id',
+            'grid_schema' => json_encode([]),
+            'form_schema' => json_encode([]),
+            'is_custom' => true,
+            'custom_view' => 'modules/sales_billing',
+            'is_active' => true,
+            'icon' => 'bi-file-earmark-check',
             'created_at' => now(),
             'updated_at' => now(),
         ]);
@@ -870,7 +961,7 @@ class DatabaseSeeder extends Seeder
 
         // 8. Seeding Permissions Matrix
         $pages = [
-            $pageCustId, $pageInvId, $pageInvItem, $pageUserConfig, $pagePermMatrixId, 
+            $pageCustId, $pageInvId, $pageSalesQuotationId, $pageSalesOrderId, $pagePurchaseOrderId, $pagePurchaseInvoiceId, $pageInvItem, $pageUserConfig, $pagePermMatrixId, 
             $pageNotifRoutingId, $pageBroadcastId, $pageInboxId, $pageContactsId, 
             $pageComposeId, $pageReportsId,
             $pageCompId, $pageBranchId, $pageDeptId, $pageVendorId, $pageTaxId, 
@@ -917,7 +1008,7 @@ class DatabaseSeeder extends Seeder
 
         // Seed Sales Representative permissions (only Customers & Invoices)
         foreach ($pages as $p) {
-            $hasAccess = in_array($p, [$pageCustId, $pageInvId, $pageInboxId, $pageContactsId, $pageComposeId, $pageReportsId, $pageVendorId, $pageTaxId, $pageUomId]);
+            $hasAccess = in_array($p, [$pageCustId, $pageInvId, $pageSalesQuotationId, $pageSalesOrderId, $pageInboxId, $pageContactsId, $pageComposeId, $pageReportsId, $pageVendorId, $pageTaxId, $pageUomId]);
             DB::table('role_permissions')->insert([
                 'role_id' => $roleIds['sales-rep'],
                 'page_id' => $p,
@@ -936,7 +1027,7 @@ class DatabaseSeeder extends Seeder
 
         // Seed Accounts Head permissions
         foreach ($pages as $p) {
-            $hasAccess = in_array($p, [$pageInvId, $pageInvItem, $pageInboxId, $pageContactsId, $pageComposeId, $pageReportsId, $pageVendorId, $pageTaxId, $pageUomId, $pageCostCenterId]);
+            $hasAccess = in_array($p, [$pageInvId, $pageSalesQuotationId, $pageSalesOrderId, $pagePurchaseOrderId, $pagePurchaseInvoiceId, $pageInvItem, $pageInboxId, $pageContactsId, $pageComposeId, $pageReportsId, $pageVendorId, $pageTaxId, $pageUomId, $pageCostCenterId]);
             DB::table('role_permissions')->insert([
                 'role_id' => $roleIds['accounts-head'],
                 'page_id' => $p,
@@ -955,7 +1046,7 @@ class DatabaseSeeder extends Seeder
 
         // Seed Accounts Member permissions
         foreach ($pages as $p) {
-            $hasAccess = in_array($p, [$pageInvId, $pageInvItem, $pageInboxId, $pageContactsId, $pageComposeId, $pageReportsId, $pageVendorId, $pageTaxId, $pageUomId, $pageCostCenterId]);
+            $hasAccess = in_array($p, [$pageInvId, $pageSalesQuotationId, $pageSalesOrderId, $pagePurchaseOrderId, $pagePurchaseInvoiceId, $pageInvItem, $pageInboxId, $pageContactsId, $pageComposeId, $pageReportsId, $pageVendorId, $pageTaxId, $pageUomId, $pageCostCenterId]);
             DB::table('role_permissions')->insert([
                 'role_id' => $roleIds['accounts-member'],
                 'page_id' => $p,
@@ -1005,8 +1096,7 @@ class DatabaseSeeder extends Seeder
         ]);
 
         // 10. Email Accounts (Gmail settings configured with user app password)
-        $emailAccId = DB::table('email_accounts')->insertGetId([
-            'user_id' => $cfoId,
+        $emailAccData = [
             'email' => 'moinahmed5426@gmail.com',
             'display_name' => 'Moin Shadab',
             'smtp_host' => 'smtp.gmail.com',
@@ -1022,7 +1112,13 @@ class DatabaseSeeder extends Seeder
             'is_active' => true,
             'created_at' => now(),
             'updated_at' => now(),
-        ]);
+        ];
+
+        if (Schema::hasColumn('email_accounts', 'user_id')) {
+            $emailAccData['user_id'] = $cfoId;
+        }
+
+        $emailAccId = DB::table('email_accounts')->insertGetId($emailAccData);
 
         DB::table('email_account_users')->insert([
             'email_account_id' => $emailAccId,
@@ -1218,6 +1314,8 @@ class DatabaseSeeder extends Seeder
             'company_id' => $acmeId,
             'branch_id' => $mumbaiBranchId,
             'item_code' => 'ITM001',
+            'hsn_sac' => '84713010',
+            'tax_rate' => 18.00,
             'name' => 'Mechanical Wireless Keyboard',
             'category' => 'Hardware Assets',
             'qty_on_hand' => 150,
@@ -1232,6 +1330,8 @@ class DatabaseSeeder extends Seeder
             'company_id' => $acmeId,
             'branch_id' => $mumbaiBranchId,
             'item_code' => 'ITM002',
+            'hsn_sac' => '84716060',
+            'tax_rate' => 18.00,
             'name' => 'Wireless Ergonomic Mouse',
             'category' => 'Hardware Assets',
             'qty_on_hand' => 5,

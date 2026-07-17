@@ -28,6 +28,10 @@ class DynamicCrudController extends Controller
             return redirect('/');
         }
 
+        if (in_array($slug, ['sales-invoices', 'sales-orders', 'purchase-orders', 'purchase-invoices', 'sales-quotations'])) {
+            $this->ensureBillingTablesExist();
+        }
+
         $pageConfig = $this->crudService->getPageConfig($slug);
         
         if (!$pageConfig) {
@@ -751,6 +755,426 @@ class DynamicCrudController extends Controller
             'message' => 'Page token updated successfully.',
             'token' => $token
         ]);
+    }
+
+    /**
+     * Self-healing check to verify and set up database schema for GST Invoicing/Billing.
+     */
+    public function ensureBillingTablesExist()
+    {
+        // 1. Check and add columns to companies table
+        if (Schema::hasTable('companies')) {
+            $newCols = [];
+            if (!Schema::hasColumn('companies', 'gstin')) {
+                $newCols['gstin'] = 'string';
+            }
+            if (!Schema::hasColumn('companies', 'state')) {
+                $newCols['state'] = 'string';
+            }
+            if (!Schema::hasColumn('companies', 'pan')) {
+                $newCols['pan'] = 'string';
+            }
+            if (!Schema::hasColumn('companies', 'bank_name')) {
+                $newCols['bank_name'] = 'string';
+            }
+            if (!Schema::hasColumn('companies', 'bank_acc_no')) {
+                $newCols['bank_acc_no'] = 'string';
+            }
+            if (!Schema::hasColumn('companies', 'bank_ifsc')) {
+                $newCols['bank_ifsc'] = 'string';
+            }
+            
+            if (!empty($newCols)) {
+                Schema::table('companies', function ($table) use ($newCols) {
+                    foreach ($newCols as $col => $type) {
+                        $table->string($col)->nullable();
+                    }
+                });
+            }
+        }
+
+        // 1.1 Check and add columns to vendors table
+        if (Schema::hasTable('vendors')) {
+            if (!Schema::hasColumn('vendors', 'state')) {
+                Schema::table('vendors', function ($table) {
+                    $table->string('state')->nullable();
+                });
+            }
+        }
+
+        // 2. Check and add HSN/SAC and tax_rate columns to inventory_items table
+        if (Schema::hasTable('inventory_items')) {
+            $newCols = [];
+            if (!Schema::hasColumn('inventory_items', 'hsn_sac')) {
+                $newCols['hsn_sac'] = 'string';
+            }
+            if (!Schema::hasColumn('inventory_items', 'tax_rate')) {
+                $newCols['tax_rate'] = 'decimal';
+            }
+            if (!empty($newCols)) {
+                Schema::table('inventory_items', function ($table) use ($newCols) {
+                    foreach ($newCols as $col => $type) {
+                        if ($type === 'decimal') {
+                            $table->decimal($col, 5, 2)->default(18.00);
+                        } else {
+                            $table->string($col, 10)->nullable();
+                        }
+                    }
+                });
+            }
+        }
+
+        // 3. Create sales_invoice_items table if it doesn't exist
+        if (!Schema::hasTable('sales_invoice_items')) {
+            Schema::create('sales_invoice_items', function ($table) {
+                $table->id();
+                $table->unsignedBigInteger('sales_invoice_id');
+                $table->unsignedBigInteger('inventory_item_id');
+                $table->string('hsn_sac', 10)->nullable();
+                $table->integer('qty')->default(1);
+                $table->decimal('unit_price', 15, 2)->default(0.00);
+                $table->decimal('subtotal', 15, 2)->default(0.00);
+                $table->decimal('cgst_rate', 5, 2)->default(0.00);
+                $table->decimal('cgst_amount', 15, 2)->default(0.00);
+                $table->decimal('sgst_rate', 5, 2)->default(0.00);
+                $table->decimal('sgst_amount', 15, 2)->default(0.00);
+                $table->decimal('igst_rate', 5, 2)->default(0.00);
+                $table->decimal('igst_amount', 15, 2)->default(0.00);
+                $table->decimal('total_amount', 15, 2)->default(0.00);
+                $table->timestamps();
+
+                if (DB::connection()->getDriverName() !== 'sqlite') {
+                    $table->foreign('sales_invoice_id')->references('id')->on('sales_invoices')->onDelete('cascade');
+                    $table->foreign('inventory_item_id')->references('id')->on('inventory_items')->onDelete('cascade');
+                }
+            });
+        }
+
+        // 4. Update sales_invoices columns (to support GST breakdown)
+        if (Schema::hasTable('sales_invoices')) {
+            $newInvCols = [];
+            if (!Schema::hasColumn('sales_invoices', 'cgst')) {
+                $newInvCols['cgst'] = 'decimal';
+            }
+            if (!Schema::hasColumn('sales_invoices', 'sgst')) {
+                $newInvCols['sgst'] = 'decimal';
+            }
+            if (!Schema::hasColumn('sales_invoices', 'igst')) {
+                $newInvCols['igst'] = 'decimal';
+            }
+            if (!Schema::hasColumn('sales_invoices', 'billing_address')) {
+                $newInvCols['billing_address'] = 'text';
+            }
+            if (!Schema::hasColumn('sales_invoices', 'payment_terms')) {
+                $newInvCols['payment_terms'] = 'string';
+            }
+
+            if (!empty($newInvCols)) {
+                Schema::table('sales_invoices', function ($table) use ($newInvCols) {
+                    foreach ($newInvCols as $col => $type) {
+                        if ($type === 'decimal') {
+                            $table->decimal($col, 15, 2)->default(0.00);
+                        } else if ($type === 'text') {
+                            $table->text($col)->nullable();
+                        } else {
+                            $table->string($col)->nullable();
+                        }
+                    }
+                });
+            }
+        }
+
+        // 4.1 Create sales_orders table
+        if (!Schema::hasTable('sales_orders')) {
+            Schema::create('sales_orders', function ($table) {
+                $table->id();
+                $table->unsignedBigInteger('company_id')->nullable();
+                $table->unsignedBigInteger('branch_id')->nullable();
+                $table->string('order_no')->unique();
+                $table->unsignedBigInteger('customer_id')->nullable();
+                $table->date('order_date');
+                $table->date('delivery_date')->nullable();
+                $table->decimal('amount', 15, 2)->default(0.00);
+                $table->decimal('tax', 15, 2)->default(0.00);
+                $table->decimal('cgst', 15, 2)->default(0.00);
+                $table->decimal('sgst', 15, 2)->default(0.00);
+                $table->decimal('igst', 15, 2)->default(0.00);
+                $table->decimal('discount', 15, 2)->default(0.00);
+                $table->decimal('total_amount', 15, 2)->default(0.00);
+                $table->text('billing_address')->nullable();
+                $table->text('shipping_address')->nullable();
+                $table->string('payment_terms')->nullable();
+                $table->string('status')->default('Draft'); // Draft, Approved, Closed, Cancelled
+                $table->timestamps();
+            });
+        }
+
+        // 4.2 Create sales_order_items table
+        if (!Schema::hasTable('sales_order_items')) {
+            Schema::create('sales_order_items', function ($table) {
+                $table->id();
+                $table->unsignedBigInteger('sales_order_id');
+                $table->unsignedBigInteger('inventory_item_id');
+                $table->string('hsn_sac', 10)->nullable();
+                $table->integer('qty')->default(1);
+                $table->decimal('unit_price', 15, 2)->default(0.00);
+                $table->decimal('subtotal', 15, 2)->default(0.00);
+                $table->decimal('cgst_rate', 5, 2)->default(0.00);
+                $table->decimal('cgst_amount', 15, 2)->default(0.00);
+                $table->decimal('sgst_rate', 5, 2)->default(0.00);
+                $table->decimal('sgst_amount', 15, 2)->default(0.00);
+                $table->decimal('igst_rate', 5, 2)->default(0.00);
+                $table->decimal('igst_amount', 15, 2)->default(0.00);
+                $table->decimal('total_amount', 15, 2)->default(0.00);
+                $table->timestamps();
+
+                if (DB::connection()->getDriverName() !== 'sqlite') {
+                    $table->foreign('sales_order_id')->references('id')->on('sales_orders')->onDelete('cascade');
+                    $table->foreign('inventory_item_id')->references('id')->on('inventory_items')->onDelete('cascade');
+                }
+            });
+        }
+
+        // 4.3 Create purchase_orders table
+        if (!Schema::hasTable('purchase_orders')) {
+            Schema::create('purchase_orders', function ($table) {
+                $table->id();
+                $table->unsignedBigInteger('company_id')->nullable();
+                $table->unsignedBigInteger('branch_id')->nullable();
+                $table->string('po_no')->unique();
+                $table->unsignedBigInteger('vendor_id')->nullable();
+                $table->date('po_date');
+                $table->date('delivery_date')->nullable();
+                $table->decimal('amount', 15, 2)->default(0.00);
+                $table->decimal('tax', 15, 2)->default(0.00);
+                $table->decimal('cgst', 15, 2)->default(0.00);
+                $table->decimal('sgst', 15, 2)->default(0.00);
+                $table->decimal('igst', 15, 2)->default(0.00);
+                $table->decimal('discount', 15, 2)->default(0.00);
+                $table->decimal('total_amount', 15, 2)->default(0.00);
+                $table->text('billing_address')->nullable();
+                $table->text('shipping_address')->nullable();
+                $table->string('payment_terms')->nullable();
+                $table->string('status')->default('Draft'); // Draft, Sent, Closed, Cancelled
+                $table->timestamps();
+            });
+        }
+
+        // 4.4 Create purchase_order_items table
+        if (!Schema::hasTable('purchase_order_items')) {
+            Schema::create('purchase_order_items', function ($table) {
+                $table->id();
+                $table->unsignedBigInteger('purchase_order_id');
+                $table->unsignedBigInteger('inventory_item_id');
+                $table->string('hsn_sac', 10)->nullable();
+                $table->integer('qty')->default(1);
+                $table->decimal('unit_price', 15, 2)->default(0.00);
+                $table->decimal('subtotal', 15, 2)->default(0.00);
+                $table->decimal('cgst_rate', 5, 2)->default(0.00);
+                $table->decimal('cgst_amount', 15, 2)->default(0.00);
+                $table->decimal('sgst_rate', 5, 2)->default(0.00);
+                $table->decimal('sgst_amount', 15, 2)->default(0.00);
+                $table->decimal('igst_rate', 5, 2)->default(0.00);
+                $table->decimal('igst_amount', 15, 2)->default(0.00);
+                $table->decimal('total_amount', 15, 2)->default(0.00);
+                $table->timestamps();
+
+                if (DB::connection()->getDriverName() !== 'sqlite') {
+                    $table->foreign('purchase_order_id')->references('id')->on('purchase_orders')->onDelete('cascade');
+                    $table->foreign('inventory_item_id')->references('id')->on('inventory_items')->onDelete('cascade');
+                }
+            });
+        }
+
+        // 4.5 Create purchase_invoices table (Vendor Bills)
+        if (!Schema::hasTable('purchase_invoices')) {
+            Schema::create('purchase_invoices', function ($table) {
+                $table->id();
+                $table->unsignedBigInteger('company_id')->nullable();
+                $table->unsignedBigInteger('branch_id')->nullable();
+                $table->string('bill_no')->unique();
+                $table->unsignedBigInteger('vendor_id')->nullable();
+                $table->date('bill_date');
+                $table->date('due_date')->nullable();
+                $table->decimal('amount', 15, 2)->default(0.00);
+                $table->decimal('tax', 15, 2)->default(0.00);
+                $table->decimal('cgst', 15, 2)->default(0.00);
+                $table->decimal('sgst', 15, 2)->default(0.00);
+                $table->decimal('igst', 15, 2)->default(0.00);
+                $table->decimal('discount', 15, 2)->default(0.00);
+                $table->decimal('total_amount', 15, 2)->default(0.00);
+                $table->text('billing_address')->nullable();
+                $table->string('payment_terms')->nullable();
+                $table->string('status')->default('Draft'); // Draft, Approved, Paid, Void
+                $table->timestamps();
+            });
+        }
+
+        // 4.6 Create purchase_invoice_items table
+        if (!Schema::hasTable('purchase_invoice_items')) {
+            Schema::create('purchase_invoice_items', function ($table) {
+                $table->id();
+                $table->unsignedBigInteger('purchase_invoice_id');
+                $table->unsignedBigInteger('inventory_item_id');
+                $table->string('hsn_sac', 10)->nullable();
+                $table->integer('qty')->default(1);
+                $table->decimal('unit_price', 15, 2)->default(0.00);
+                $table->decimal('subtotal', 15, 2)->default(0.00);
+                $table->decimal('cgst_rate', 5, 2)->default(0.00);
+                $table->decimal('cgst_amount', 15, 2)->default(0.00);
+                $table->decimal('sgst_rate', 5, 2)->default(0.00);
+                $table->decimal('sgst_amount', 15, 2)->default(0.00);
+                $table->decimal('igst_rate', 5, 2)->default(0.00);
+                $table->decimal('igst_amount', 15, 2)->default(0.00);
+                $table->decimal('total_amount', 15, 2)->default(0.00);
+                $table->timestamps();
+
+                if (DB::connection()->getDriverName() !== 'sqlite') {
+                    $table->foreign('purchase_invoice_id')->references('id')->on('purchase_invoices')->onDelete('cascade');
+                    $table->foreign('inventory_item_id')->references('id')->on('inventory_items')->onDelete('cascade');
+                }
+            });
+        }
+
+        // 5. Update the pages table so that sales-invoices uses the custom view
+        DB::table('pages')
+            ->where('slug', 'sales-invoices')
+            ->update([
+                'is_custom' => true,
+                'custom_view' => 'modules/sales_billing',
+            ]);
+
+        // 6. Dynamically register missing pages for Sales Orders, Purchase Orders, and Bills
+        $salesInvoicePage = DB::table('pages')->where('slug', 'sales-invoices')->first();
+        if ($salesInvoicePage) {
+            $modId = $salesInvoicePage->module_id;
+            
+            // Register Sales Orders
+            if (!DB::table('pages')->where('slug', 'sales-orders')->exists()) {
+                DB::table('pages')->insert([
+                    'module_id' => $modId,
+                    'name' => 'Sales Orders',
+                    'slug' => 'sales-orders',
+                    'token' => 'SO-300',
+                    'title' => 'Sales Orders Confirmations',
+                    'db_table' => 'sales_orders',
+                    'primary_key' => 'id',
+                    'is_custom' => true,
+                    'custom_view' => 'modules/sales_billing',
+                    'is_active' => true,
+                    'icon' => 'bi-cart-check',
+                    'created_at' => now(),
+                    'updated_at' => now()
+                ]);
+            }
+            
+            // Register Purchase Orders
+            if (!DB::table('pages')->where('slug', 'purchase-orders')->exists()) {
+                DB::table('pages')->insert([
+                    'module_id' => $modId,
+                    'name' => 'Purchase Orders',
+                    'slug' => 'purchase-orders',
+                    'token' => 'PO-400',
+                    'title' => 'Purchase Orders to Vendors',
+                    'db_table' => 'purchase_orders',
+                    'primary_key' => 'id',
+                    'is_custom' => true,
+                    'custom_view' => 'modules/sales_billing',
+                    'is_active' => true,
+                    'icon' => 'bi-file-earmark-arrow-down',
+                    'created_at' => now(),
+                    'updated_at' => now()
+                ]);
+            }
+
+            // Register Purchase Invoices (Bills)
+            if (!DB::table('pages')->where('slug', 'purchase-invoices')->exists()) {
+                DB::table('pages')->insert([
+                    'module_id' => $modId,
+                    'name' => 'Vendor Bills',
+                    'slug' => 'purchase-invoices',
+                    'token' => 'BILL-500',
+                    'title' => 'Vendor Bills & Receipts',
+                    'db_table' => 'purchase_invoices',
+                    'primary_key' => 'id',
+                    'is_custom' => true,
+                    'custom_view' => 'modules/sales_billing',
+                    'is_active' => true,
+                    'icon' => 'bi-file-earmark-check',
+                    'created_at' => now(),
+                    'updated_at' => now()
+                ]);
+            }
+
+            // Register Sales Quotations
+            if (!DB::table('pages')->where('slug', 'sales-quotations')->exists()) {
+                DB::table('pages')->insert([
+                    'module_id' => $modId,
+                    'name' => 'Sales Quotations',
+                    'slug' => 'sales-quotations',
+                    'token' => 'QTN-100',
+                    'title' => 'Sales Quotations & Estimates',
+                    'db_table' => 'sales_quotations',
+                    'primary_key' => 'id',
+                    'is_custom' => true,
+                    'custom_view' => 'modules/sales_billing',
+                    'is_active' => true,
+                    'icon' => 'bi-file-earmark-text',
+                    'created_at' => now(),
+                    'updated_at' => now()
+                ]);
+            }
+        }
+
+        // 4.7 Create sales_quotations table
+        if (!Schema::hasTable('sales_quotations')) {
+            Schema::create('sales_quotations', function ($table) {
+                $table->id();
+                $table->unsignedBigInteger('company_id')->nullable();
+                $table->unsignedBigInteger('branch_id')->nullable();
+                $table->string('quote_no')->unique();
+                $table->unsignedBigInteger('customer_id')->nullable();
+                $table->date('quote_date');
+                $table->date('valid_until')->nullable();
+                $table->decimal('amount', 15, 2)->default(0.00);
+                $table->decimal('tax', 15, 2)->default(0.00);
+                $table->decimal('cgst', 15, 2)->default(0.00);
+                $table->decimal('sgst', 15, 2)->default(0.00);
+                $table->decimal('igst', 15, 2)->default(0.00);
+                $table->decimal('discount', 15, 2)->default(0.00);
+                $table->decimal('total_amount', 15, 2)->default(0.00);
+                $table->text('billing_address')->nullable();
+                $table->string('payment_terms')->nullable();
+                $table->string('status')->default('Draft'); // Draft, Sent, Accepted, Rejected
+                $table->timestamps();
+            });
+        }
+
+        // 4.8 Create sales_quotation_items table
+        if (!Schema::hasTable('sales_quotation_items')) {
+            Schema::create('sales_quotation_items', function ($table) {
+                $table->id();
+                $table->unsignedBigInteger('sales_quotation_id');
+                $table->unsignedBigInteger('inventory_item_id');
+                $table->string('hsn_sac', 10)->nullable();
+                $table->integer('qty')->default(1);
+                $table->decimal('unit_price', 15, 2)->default(0.00);
+                $table->decimal('subtotal', 15, 2)->default(0.00);
+                $table->decimal('cgst_rate', 5, 2)->default(0.00);
+                $table->decimal('cgst_amount', 15, 2)->default(0.00);
+                $table->decimal('sgst_rate', 5, 2)->default(0.00);
+                $table->decimal('sgst_amount', 15, 2)->default(0.00);
+                $table->decimal('igst_rate', 5, 2)->default(0.00);
+                $table->decimal('igst_amount', 15, 2)->default(0.00);
+                $table->decimal('total_amount', 15, 2)->default(0.00);
+                $table->timestamps();
+
+                if (DB::connection()->getDriverName() !== 'sqlite') {
+                    $table->foreign('sales_quotation_id')->references('id')->on('sales_quotations')->onDelete('cascade');
+                    $table->foreign('inventory_item_id')->references('id')->on('inventory_items')->onDelete('cascade');
+                }
+            });
+        }
     }
 
     /**
