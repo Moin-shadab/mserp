@@ -1,20 +1,21 @@
 {{-- Internal Chat Custom CSS --}}
 <style>
     :root {
-        --slack-sidebar-gradient: linear-gradient(135deg, #f5f3ff 0%, #e0e7ff 100%);
-        --slack-sidebar-hover-bg: #c7d2fe;
-        --slack-sidebar-text: #3730a3;
-        --slack-sidebar-active-bg: #a5b4fc;
-        --slack-sidebar-active-text: #1e1b4b;
-        --slack-border: #cbd5e1;
-        --slack-active-green: #16a34a; /* Vibrant Darker Green */
+        --slack-sidebar-gradient: #ffffff;
+        --slack-sidebar-hover-bg: #f0f2f5;
+        --slack-sidebar-text: #111b21;
+        --slack-sidebar-active-bg: #eae6df;
+        --slack-sidebar-active-text: #111b21;
+        --slack-border: #e9edef;
+        --slack-active-green: #25d366;
         
-        /* High Contrast Main Theme colors */
-        --chat-bg-main: #f8fafc; /* Slate Light Gray Main Chat background */
-        --chat-bg-bubble: #ffffff; /* White Message Bubbles */
-        --chat-text-main: #0f172a; /* Very Dark Slate Main text */
-        --chat-text-muted: #1e293b; /* Medium Slate Muted text */
-        --chat-text-light: #475569; /* Muted Slate info text */
+        /* WhatsApp Theme Palette */
+        --chat-bg-main: #efeae2; /* Classic WhatsApp Tiled Background */
+        --chat-bg-bubble-in: #ffffff;
+        --chat-bg-bubble-out: #d9fdd3;
+        --chat-text-main: #111b21;
+        --chat-text-muted: #667781;
+        --chat-text-light: #8696a0;
     }
 
     .chat-container {
@@ -28,51 +29,52 @@
         font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     }
 
-    /* Left Sidebar */
+    /* Left Sidebar - WhatsApp Style Chat List */
     .chat-sidebar {
-        width: 260px;
-        background: var(--slack-sidebar-gradient) !important;
-        color: #1e1b4b !important;
+        width: 340px;
+        background: #ffffff !important;
+        color: var(--chat-text-main) !important;
         display: flex;
         flex-direction: column;
-        border-right: 1px solid #cbd5e1 !important;
+        border-right: 1px solid var(--slack-border) !important;
         flex-shrink: 0;
     }
 
     .chat-sidebar-header {
         padding: 16px 20px;
-        border-bottom: 1px solid #cbd5e1 !important;
+        background-color: #f0f2f5;
+        border-bottom: 1px solid var(--slack-border) !important;
         display: flex;
         align-items: center;
         justify-content: space-between;
     }
 
     .chat-sidebar-header h5 {
-        font-size: 1.05rem;
+        font-size: 1.15rem;
         font-weight: 700;
         margin: 0;
-        color: #1e1b4b !important;
+        color: var(--chat-text-main) !important;
         letter-spacing: -0.3px;
     }
 
     .chat-sidebar-content {
         flex: 1;
         overflow-y: auto;
-        padding: 12px 0;
+        padding: 0;
     }
 
     .sidebar-section {
-        margin-bottom: 20px;
+        margin-bottom: 15px;
     }
 
     .sidebar-section-header {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        padding: 4px 20px;
-        font-size: 0.75rem;
+        padding: 12px 20px 6px;
+        font-size: 0.78rem;
         font-weight: 700;
-        color: #4f46e5 !important;
+        color: #008069 !important;
         text-transform: uppercase;
         letter-spacing: 0.5px;
     }
@@ -80,7 +82,7 @@
     .sidebar-section-header .add-btn {
         background: none;
         border: none;
-        color: #4f46e5 !important;
+        color: #008069 !important;
         cursor: pointer;
         padding: 0;
         font-size: 0.95rem;
@@ -88,7 +90,7 @@
     }
 
     .sidebar-section-header .add-btn:hover {
-        color: #1e1b4b !important;
+        color: #015c4b !important;
     }
 
     .sidebar-list {
@@ -97,42 +99,109 @@
         margin: 0;
     }
 
+    /* WhatsApp Chat List Item (Card style) */
     .sidebar-item-link {
         display: flex;
         align-items: center;
-        padding: 8px 20px;
-        color: var(--slack-sidebar-text) !important;
+        padding: 12px 20px;
+        color: var(--chat-text-main) !important;
         text-decoration: none;
-        font-size: 0.88rem;
-        transition: background 0.15s, color 0.15s;
+        transition: background 0.15s;
         cursor: pointer;
         border-radius: 0;
+        border-bottom: 1px solid #f0f2f5;
     }
 
     .sidebar-item-link:hover {
         background-color: var(--slack-sidebar-hover-bg) !important;
-        color: #1e1b4b !important;
     }
 
     .sidebar-item-link.active {
         background-color: var(--slack-sidebar-active-bg) !important;
-        color: var(--slack-sidebar-active-text) !important;
-        font-weight: 600;
     }
 
-    .sidebar-item-icon {
-        margin-right: 8px;
-        font-size: 0.95rem;
+    /* WhatsApp Custom Elements inside sidebar link */
+    .chat-avatar {
+        width: 45px;
+        height: 45px;
+        border-radius: 50%;
         display: flex;
         align-items: center;
-        color: inherit !important;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 1.1rem;
+        margin-right: 12px;
+        color: #ffffff;
+        flex-shrink: 0;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    
+    .chat-details {
+        flex-grow: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }
+    
+    .chat-name-time {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        margin-bottom: 3px;
+    }
+    
+    .chat-name {
+        font-weight: 600;
+        font-size: 0.92rem;
+        color: var(--chat-text-main);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    
+    .chat-time {
+        font-size: 0.72rem;
+        color: var(--chat-text-muted);
+        flex-shrink: 0;
+    }
+    
+    .chat-msg-preview-unread {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .chat-msg-preview {
+        font-size: 0.8rem;
+        color: var(--chat-text-muted);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        flex-grow: 1;
+        margin-right: 8px;
+    }
+    
+    .chat-unread-badge {
+        background-color: #25d366;
+        color: #fff;
+        font-size: 0.72rem;
+        font-weight: 700;
+        min-width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0 4px;
+        flex-shrink: 0;
     }
 
     .status-dot {
         width: 8px;
         height: 8px;
         background-color: transparent;
-        border: 1.5px solid #3730a3 !important;
+        border: 1.5px solid #cbd5e1 !important;
         border-radius: 50%;
         margin-right: 8px;
         display: inline-block;
@@ -155,7 +224,7 @@
 
     .chat-header {
         height: 60px;
-        background-color: #ffffff !important;
+        background-color: #f0f2f5 !important;
         border-bottom: 1px solid var(--slack-border) !important;
         padding: 10px 24px;
         display: flex;
@@ -174,7 +243,7 @@
 
     .chat-header-info span {
         font-size: 0.75rem;
-        color: var(--chat-text-light) !important;
+        color: var(--chat-text-muted) !important;
     }
 
     .chat-messages-scroll {
@@ -183,100 +252,92 @@
         padding: 24px;
         display: flex;
         flex-direction: column;
-        gap: 16px;
+        gap: 12px;
         background-color: var(--chat-bg-main) !important;
+        /* Subtle Tiled Pattern Wallpaper */
+        background-image: radial-gradient(rgba(0, 0, 0, 0.04) 1px, transparent 0), radial-gradient(rgba(0, 0, 0, 0.04) 1px, transparent 0);
+        background-size: 24px 24px;
+        background-position: 0 0, 12px 12px;
     }
 
-    /* Message Bubble styling - modern contrast cards */
-    .message-item {
+    /* WhatsApp Styled Message Rows */
+    .message-wrapper {
         display: flex;
+        width: 100%;
+        margin-bottom: 2px;
+    }
+
+    .message-wrapper.message-in {
+        justify-content: flex-start;
+    }
+
+    .message-wrapper.message-out {
+        justify-content: flex-end;
+    }
+
+    .message-bubble {
         position: relative;
-        padding: 12px 16px;
-        background-color: var(--chat-bg-bubble) !important;
-        border: 1px solid rgba(226, 232, 240, 0.8) !important;
+        max-width: 65%;
+        padding: 8px 12px 28px; /* space at bottom for timestamp status bar */
         border-radius: 8px;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.02) !important;
-        transition: transform 0.15s, box-shadow 0.15s;
+        box-shadow: 0 1px 1px rgba(0,0,0,0.08) !important;
+        font-size: 0.92rem;
+        line-height: 1.45;
+        word-break: break-word;
     }
 
-    .message-item:hover {
-        box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.03) !important;
-        transform: translateY(-1px);
-    }
-
-    .message-avatar {
-        width: 36px;
-        height: 36px;
-        border-radius: 4px;
-        background-color: #e0e7ff !important;
-        color: #3730a3 !important;
-        font-weight: 700;
-        font-size: 0.85rem;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        margin-right: 12px;
-        flex-shrink: 0;
-        text-transform: uppercase;
-        border: 1px solid #c7d2fe !important;
-    }
-
-    .message-content-wrapper {
-        flex: 1;
-        min-width: 0;
-    }
-
-    .message-meta {
-        display: flex;
-        align-items: baseline;
-        margin-bottom: 4px;
-        gap: 8px;
-    }
-
-    .message-sender {
-        font-weight: 700;
-        font-size: 0.88rem;
+    .message-wrapper.message-in .message-bubble {
+        background-color: var(--chat-bg-bubble-in) !important;
         color: var(--chat-text-main) !important;
+        border-top-left-radius: 0;
     }
 
-    .message-role {
-        font-size: 0.7rem;
-        color: #2563eb !important;
-        background-color: #eff6ff !important;
-        padding: 1px 6px;
-        border-radius: 4px;
-        font-weight: 600;
-    }
-
-    .message-time {
-        font-size: 0.75rem;
-        color: var(--chat-text-light) !important;
+    .message-wrapper.message-out .message-bubble {
+        background-color: var(--chat-bg-bubble-out) !important;
+        color: var(--chat-text-main) !important;
+        border-top-right-radius: 0;
     }
 
     .message-text {
-        font-size: 0.9rem;
-        color: var(--chat-text-muted) !important;
-        line-height: 1.5;
-        word-break: break-word;
+        color: inherit !important;
         white-space: pre-wrap;
     }
 
-    /* Message Hover Actions overlay */
+    .message-status-bar {
+        position: absolute;
+        bottom: 4px;
+        right: 8px;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .message-time {
+        font-size: 0.68rem;
+        color: #667781 !important;
+    }
+
+    .message-status {
+        display: flex;
+        align-items: center;
+    }
+
+    /* Message Actions Hover Overlay */
     .message-actions {
         position: absolute;
-        right: 16px;
-        top: -14px;
+        right: 8px;
+        top: 4px;
         background-color: #ffffff !important;
         border: 1px solid var(--slack-border) !important;
         border-radius: 6px;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1) !important;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1) !important;
         display: none;
-        padding: 3px;
+        padding: 2px;
         z-index: 10;
         gap: 2px;
     }
 
-    .message-item:hover .message-actions {
+    .message-bubble:hover .message-actions {
         display: flex;
     }
 
@@ -285,13 +346,13 @@
         border: none;
         color: var(--chat-text-muted) !important;
         cursor: pointer;
-        padding: 4px 8px;
-        font-size: 0.82rem;
+        padding: 2px 6px;
+        font-size: 0.75rem;
         border-radius: 4px;
-        transition: background 0.15s, color 0.15s;
+        transition: background 0.15s;
         display: flex;
         align-items: center;
-        gap: 4px;
+        gap: 3px;
     }
 
     .action-btn:hover {
@@ -308,23 +369,23 @@
     .thread-reply-indicator {
         display: inline-flex;
         align-items: center;
-        margin-top: 8px;
-        font-size: 0.8rem;
+        margin-top: 6px;
+        font-size: 0.75rem;
         font-weight: 600;
-        color: var(--slack-sidebar-active) !important;
+        color: #008069 !important;
         cursor: pointer;
         border-radius: 4px;
-        padding: 2px 6px;
+        padding: 2px 4px;
         transition: background-color 0.15s;
     }
 
     .thread-reply-indicator:hover {
-        background-color: #eff6ff !important;
+        background-color: rgba(0, 128, 105, 0.08) !important;
         text-decoration: underline;
     }
 
     .thread-reply-indicator i {
-        margin-right: 4px;
+        margin-right: 3px;
     }
 
     /* Chat Input Box */

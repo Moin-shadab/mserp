@@ -104,7 +104,52 @@ class ChatController extends Controller
                 ->where('users.is_active', true)
                 ->select('users.id', 'users.name', 'users.email', 'roles.name as role_name', 'departments.name as department_name')
                 ->orderBy('users.name')
-                ->get();
+                ->get()
+                ->toArray();
+
+            foreach ($contacts as &$contact) {
+                // Find last message between $user->id and $contact->id
+                $lastMsg = DB::table('chat_messages')
+                    ->where(function($q) use ($user, $contact) {
+                        $q->where('sender_id', $user->id)->where('recipient_id', $contact->id);
+                    })
+                    ->orWhere(function($q) use ($user, $contact) {
+                        $q->where('sender_id', $contact->id)->where('recipient_id', $user->id);
+                    })
+                    ->whereNull('parent_message_id')
+                    ->orderBy('created_at', 'desc')
+                    ->first();
+
+                $contact->last_message = $lastMsg ? $lastMsg->message : null;
+                $contact->last_message_time = $lastMsg ? $lastMsg->created_at : null;
+
+                // Unread count from this sender
+                $contact->unread_count = DB::table('chat_messages')
+                    ->where('sender_id', $contact->id)
+                    ->where('recipient_id', $user->id)
+                    ->where('is_read', false)
+                    ->count();
+            }
+        }
+
+        // Fetch last message & unread status for Group Channels
+        $groups = $groups->toArray();
+        foreach ($groups as &$group) {
+            $lastMsg = DB::table('chat_messages')
+                ->where('group_id', $group->id)
+                ->whereNull('parent_message_id')
+                ->orderBy('created_at', 'desc')
+                ->first();
+
+            $group->last_message = $lastMsg ? $lastMsg->message : null;
+            $group->last_message_time = $lastMsg ? $lastMsg->created_at : null;
+
+            // Unread count (any unread message in the channel not sent by current user)
+            $group->unread_count = DB::table('chat_messages')
+                ->where('group_id', $group->id)
+                ->where('sender_id', '<>', $user->id)
+                ->where('is_read', false)
+                ->count();
         }
 
         // Return current user's profile details and lists
@@ -151,6 +196,14 @@ class ChatController extends Controller
                 }
             }
             $query->where('chat_messages.group_id', $groupId);
+
+            // Mark group messages as read
+            DB::table('chat_messages')
+                ->where('group_id', $groupId)
+                ->where('sender_id', '<>', $user->id)
+                ->where('is_read', false)
+                ->update(['is_read' => true]);
+
         } elseif ($recipientId) {
             $query->where(function ($q) use ($user, $recipientId) {
                 $q->where(function ($q1) use ($user, $recipientId) {
@@ -161,6 +214,14 @@ class ChatController extends Controller
                        ->where('chat_messages.recipient_id', $user->id);
                 });
             });
+
+            // Mark DM messages as read
+            DB::table('chat_messages')
+                ->where('sender_id', $recipientId)
+                ->where('recipient_id', $user->id)
+                ->where('is_read', false)
+                ->update(['is_read' => true]);
+
         } else {
             return response()->json(['error' => 'Invalid parameters'], 400);
         }

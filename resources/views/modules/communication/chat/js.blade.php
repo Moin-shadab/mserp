@@ -139,17 +139,34 @@ function renderSidebar() {
     channelsList.forEach(ch => {
         const li = document.createElement('li');
         const isActive = selectedType === 'group' && selectedId == ch.id;
+        const initials = getInitials(ch.name);
+        const avatarBg = getAvatarColor(ch.name);
+        const msgPreview = ch.last_message || 'No messages yet';
+        const timeStr = ch.last_message_time ? new Date(ch.last_message_time).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) : '';
+        const unreadBadge = ch.unread_count > 0 ? `<span class="chat-unread-badge">${ch.unread_count}</span>` : '';
+
         li.innerHTML = `
             <a class="sidebar-item-link ${isActive ? 'active' : ''}" onclick="selectChat(event, 'group', ${ch.id}, '# ${ch.name}')">
-                <span class="sidebar-item-icon"><i class="bi bi-hash"></i></span>
-                <span class="text-truncate">${ch.name}</span>
+                <div class="chat-avatar" style="background-color: ${avatarBg};">
+                    ${initials}
+                </div>
+                <div class="chat-details">
+                    <div class="chat-name-time">
+                        <span class="chat-name"># ${ch.name}</span>
+                        <span class="chat-time">${timeStr}</span>
+                    </div>
+                    <div class="chat-msg-preview-unread">
+                        <span class="chat-msg-preview">${msgPreview}</span>
+                        ${unreadBadge}
+                    </div>
+                </div>
             </a>
         `;
         channelsListEl.appendChild(li);
     });
 
     if (channelsList.length === 0) {
-        channelsListEl.innerHTML = '<li class="px-4 py-1 text-muted small">No channels joined</li>';
+        channelsListEl.innerHTML = '<li class="px-4 py-3 text-muted small">No channels joined</li>';
     }
 
     // Render Contacts (DMs)
@@ -157,17 +174,34 @@ function renderSidebar() {
     contactsList.forEach(ct => {
         const li = document.createElement('li');
         const isActive = selectedType === 'direct' && selectedId == ct.id;
+        const initials = getInitials(ct.name);
+        const avatarBg = getAvatarColor(ct.name);
+        const msgPreview = ct.last_message || 'No messages yet';
+        const timeStr = ct.last_message_time ? new Date(ct.last_message_time).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) : '';
+        const unreadBadge = ct.unread_count > 0 ? `<span class="chat-unread-badge">${ct.unread_count}</span>` : '';
+
         li.innerHTML = `
             <a class="sidebar-item-link ${isActive ? 'active' : ''}" onclick="selectChat(event, 'direct', ${ct.id}, '@ ${ct.name}')">
-                <span class="status-dot online"></span>
-                <span class="text-truncate">${ct.name}</span>
+                <div class="chat-avatar" style="background-color: ${avatarBg};">
+                    ${initials}
+                </div>
+                <div class="chat-details">
+                    <div class="chat-name-time">
+                        <span class="chat-name">${ct.name}</span>
+                        <span class="chat-time">${timeStr}</span>
+                    </div>
+                    <div class="chat-msg-preview-unread">
+                        <span class="chat-msg-preview">${msgPreview}</span>
+                        ${unreadBadge}
+                    </div>
+                </div>
             </a>
         `;
         contactsListEl.appendChild(li);
     });
 
     if (contactsList.length === 0) {
-        contactsListEl.innerHTML = '<li class="px-4 py-1 text-muted small">No contacts available</li>';
+        contactsListEl.innerHTML = '<li class="px-4 py-3 text-muted small">No contacts available</li>';
     }
 }
 
@@ -252,6 +286,9 @@ function selectChat(event, type, id, title) {
         </div>
     `;
     loadConversationMessages();
+    
+    // Refresh sidebar details instantly to clear unread read badges
+    setTimeout(refreshSidebarData, 500);
 }
 
 // Load conversation messages
@@ -271,6 +308,7 @@ function loadConversationMessages() {
 // Render Messages Stream Helper
 function renderMessageStream(messages, targetContainer) {
     const isMainStream = (targetContainer === messagesStream);
+    const isGroup = (selectedType === 'group');
     
     // Keep track of scroll offset before updating
     const wasScrolledToBottom = targetContainer.scrollHeight - targetContainer.clientHeight <= targetContainer.scrollTop + 50;
@@ -289,7 +327,8 @@ function renderMessageStream(messages, targetContainer) {
 
     messages.forEach(msg => {
         const item = document.createElement('div');
-        item.className = 'message-item';
+        const isOutgoing = msg.sender_id == currentUser.id;
+        item.className = `message-wrapper ${isOutgoing ? 'message-out' : 'message-in'}`;
         item.id = `message-item-${msg.id}`;
 
         const initials = getInitials(msg.sender_name);
@@ -305,21 +344,21 @@ function renderMessageStream(messages, targetContainer) {
         // Parse attachments
         let attachmentsHtml = '';
         if (msg.attachments && msg.attachments.length > 0 && !msg.deleted_at && !msg.is_deleted) {
-            attachmentsHtml = '<div class="message-attachments">';
+            attachmentsHtml = '<div class="message-attachments mt-2">';
             msg.attachments.forEach(at => {
                 if (at.mime_type && at.mime_type.startsWith('image/')) {
                     attachmentsHtml += `
-                        <div class="attachment-image-preview" onclick="viewFullImage('${at.file_path}')">
-                            <img src="${at.file_path}" alt="${at.filename}">
+                        <div class="attachment-image-preview mb-1" onclick="viewFullImage('${at.file_path}')" style="cursor: pointer; max-width: 250px; border-radius: 6px; overflow: hidden; border: 1px solid rgba(0,0,0,0.05);">
+                            <img src="${at.file_path}" alt="${at.filename}" style="width: 100%; height: auto; object-fit: cover;">
                         </div>
                     `;
                 } else {
                     attachmentsHtml += `
-                        <a href="${at.file_path}" target="_blank" download="${at.filename}" class="attachment-card">
-                            <span class="attachment-icon"><i class="bi ${getFileIconClass(at.mime_type)}"></i></span>
-                            <div class="attachment-info">
-                                <span class="attachment-name">${at.filename}</span>
-                                <span class="attachment-size">${formatBytes(at.file_size)}</span>
+                        <a href="${at.file_path}" target="_blank" download="${at.filename}" class="attachment-card d-flex align-items-center p-2 rounded bg-light border text-decoration-none text-dark small mb-1" style="max-width: 250px;">
+                            <span class="attachment-icon me-2 fs-5"><i class="bi ${getFileIconClass(at.mime_type)}"></i></span>
+                            <div class="attachment-info min-w-0 flex-grow-1">
+                                <div class="attachment-name text-truncate fw-semibold" style="max-width: 160px;">${at.filename}</div>
+                                <div class="attachment-size text-muted" style="font-size: 0.7rem;">${formatBytes(at.file_size)}</div>
                             </div>
                         </a>
                     `;
@@ -368,20 +407,26 @@ function renderMessageStream(messages, targetContainer) {
         const timeStr = new Date(msg.created_at).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
 
         item.innerHTML = `
-            <div class="message-avatar" style="background-color: ${avatarBg};">
-                ${initials}
-            </div>
-            <div class="message-content-wrapper">
-                <div class="message-meta">
-                    <span class="message-sender">${msg.sender_name}</span>
-                    ${msg.sender_role ? `<span class="message-role">${msg.sender_role}</span>` : ''}
-                    <span class="message-time">${timeStr}</span>
-                </div>
+            <div class="message-bubble">
+                ${(!isOutgoing && isGroup) ? `<span class="message-sender" style="color: ${avatarBg}; font-weight: 700; font-size: 0.8rem; display: block; margin-bottom: 2px;">${msg.sender_name}</span>` : ''}
                 <div class="message-text">${textDisplay}</div>
                 ${attachmentsHtml}
                 ${threadIndicatorHtml}
+                
+                <div class="message-status-bar">
+                    <span class="message-time">${timeStr}</span>
+                    ${isOutgoing ? `
+                        <span class="message-status">
+                            ${msg.is_read ? `
+                                <i class="bi bi-check-all text-info" style="color: #53bdeb !important; font-size: 1.1rem; line-height: 1;"></i>
+                            ` : `
+                                <i class="bi bi-check-all text-secondary" style="color: #8696a0 !important; font-size: 1.1rem; line-height: 1;"></i>
+                            `}
+                        </span>
+                    ` : ''}
+                </div>
+                ${actionsHtml}
             </div>
-            ${actionsHtml}
         `;
         
         targetContainer.appendChild(item);
@@ -393,7 +438,21 @@ function renderMessageStream(messages, targetContainer) {
     }
 }
 
+// Refresh Sidebar Data
+function refreshSidebarData() {
+    fetch('/api/chat/context', { headers: getHeaders() })
+        .then(res => res.json())
+        .then(data => {
+            if (data.error) return;
+            channelsList = data.channels || [];
+            contactsList = data.contacts || [];
+            renderSidebar();
+        })
+        .catch(err => console.error('Failed to refresh sidebar', err));
+}
+
 // Poll for message updates
+let pollCounter = 0;
 function pollMessages() {
     // If the chat container has been unmounted, clean up polling intervals automatically
     if (!document.getElementById('slack-chat-container')) {
@@ -404,6 +463,11 @@ function pollMessages() {
 
     if (adminDashboardPanel && adminDashboardPanel.style.display === 'flex') {
         return; // Don't poll while in admin panel
+    }
+
+    pollCounter++;
+    if (pollCounter % 2 === 0) {
+        refreshSidebarData();
     }
 
     if (selectedId && selectedType) {
@@ -507,6 +571,9 @@ function submitMessage() {
         
         // Reload messages stream
         loadConversationMessages();
+        
+        // Refresh sidebar metadata instantly
+        refreshSidebarData();
     })
     .catch(err => {
         console.error('Failed to send message', err);
@@ -533,6 +600,9 @@ function submitDeleteMessage(id) {
         
         // Reload messages
         loadConversationMessages();
+        
+        // Refresh sidebar metadata instantly
+        refreshSidebarData();
         
         // If thread is active, reload thread too
         if (activeThreadId) {
@@ -900,9 +970,17 @@ function toggleAdminPanel(event, show) {
         chatMainPanel.style.display = 'flex';
         document.getElementById('admin-panel-toggle').classList.remove('active');
         
-        // Restore active conversation selection if exists
+        // Restore active conversation display if exists
         if (selectedId && selectedType) {
-            selectChat(null, selectedType, selectedId, (selectedType === 'group' ? `# ${channelsList.find(c=>c.id==selectedId).name}` : `@ ${contactsList.find(c=>c.id==selectedId).name}`));
+            chatLoadingOverlay.classList.add('d-none');
+            activeChatContainer.classList.remove('d-none');
+            // Re-apply active class to current selected sidebar element
+            document.querySelectorAll('.sidebar-item-link').forEach(el => {
+                const onclickAttr = el.getAttribute('onclick') || '';
+                if (onclickAttr.includes(`'${selectedType}'`) && onclickAttr.includes(selectedId)) {
+                    el.classList.add('active');
+                }
+            });
         } else {
             chatLoadingOverlay.classList.remove('d-none');
             activeChatContainer.classList.add('d-none');
