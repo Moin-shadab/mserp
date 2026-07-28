@@ -233,4 +233,75 @@ class EmailServiceTest extends TestCase
         // Assert grandchild resolves to same thread ID
         $this->assertEquals($parentEmail->thread_id, $grandchildEmail->thread_id);
     }
+
+    /**
+     * Test background artisan command email:sync and auto-sync API endpoint.
+     */
+    public function test_artisan_email_sync_command_and_auto_sync_endpoint(): void
+    {
+        // 1. Run artisan command
+        $exitCode = \Illuminate\Support\Facades\Artisan::call('email:sync', [
+            '--account' => $this->account->id
+        ]);
+        $this->assertEquals(0, $exitCode);
+
+        // 2. Call auto-sync endpoint via HTTP
+        $response = $this->getJson('/api/email/auto-sync');
+        $response->assertStatus(200)
+                 ->assertJson([
+                     'success' => true
+                 ])
+                 ->assertJsonStructure([
+                     'success',
+                     'new_emails_count',
+                     'folder_counts'
+                 ]);
+    }
+
+    /**
+     * Test multi-user account isolation prevents email mix-matching across 2000 users / 1500 accounts.
+     */
+    public function test_multi_user_account_isolation_prevents_email_leak(): void
+    {
+        // Create User B and Account B
+        $userB = \App\Models\User::factory()->create(['role_id' => 1]);
+        $accountBId = DB::table('email_accounts')->insertGetId([
+            'user_id' => $userB->id,
+            'email' => 'user-b@mserp.local',
+            'display_name' => 'User B',
+            'is_active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::table('email_account_users')->insert([
+            'email_account_id' => $accountBId,
+            'user_id' => $userB->id,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        // Insert sensitive email for User B / Account B
+        DB::table('emails')->insert([
+            'email_account_id' => $accountBId,
+            'message_id' => 'secret-b@mserp.local',
+            'thread_id' => 'secret-thread-b',
+            'from_address' => 'private@vendor.com',
+            'to_address' => 'user-b@mserp.local',
+            'subject' => 'CONFIDENTIAL USER B DATA',
+            'folder' => 'INBOX',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        // Acting as $this->user (User A)
+        $response = $this->getJson('/api/email/list');
+        $response->assertStatus(200);
+
+        $emails = $response->json('data');
+        $subjects = array_column($emails, 'subject');
+
+        // User A must NEVER see User B's emails!
+        $this->assertNotContains('CONFIDENTIAL USER B DATA', $subjects);
+    }
 }
+

@@ -1,3 +1,9 @@
+// Clear existing polling intervals to avoid leaks
+if (window.emailAutoSyncInterval) {
+    clearInterval(window.emailAutoSyncInterval);
+    window.emailAutoSyncInterval = null;
+}
+
 // Ensure AG Grid loaded
 if (typeof agGrid === 'undefined') {
     const gridScript = document.createElement('script');
@@ -736,3 +742,38 @@ function switchEmailAccountLocal(event, accId, email) {
     .catch(err => showToast('error', 'Network error.'));
 }
 window.switchEmailAccountLocal = switchEmailAccountLocal;
+
+function triggerLiveAutoSync() {
+    if (!activeEmailAccountId) return;
+
+    fetch('/api/email/auto-sync', {
+        method: 'POST',
+        headers: {
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+        }
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data && data.success) {
+            if (data.folder_counts) {
+                for (const folder in data.folder_counts) {
+                    const badge = document.getElementById('count-' + folder.toLowerCase());
+                    if (badge) {
+                        badge.textContent = data.folder_counts[folder];
+                    }
+                }
+            }
+            if (data.new_emails_count && data.new_emails_count > 0) {
+                showToast('success', `⚡ ${data.new_emails_count} new email(s) dropped into your inbox!`);
+                loadEmails();
+            }
+        }
+    })
+    .catch(err => {
+        // Silent catch for background polling
+    });
+}
+window.triggerLiveAutoSync = triggerLiveAutoSync;
+
+// Start Thunderbird-style live auto-sync polling every 12 seconds
+window.emailAutoSyncInterval = setInterval(triggerLiveAutoSync, 12000);

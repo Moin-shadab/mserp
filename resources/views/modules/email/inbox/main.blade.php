@@ -92,9 +92,12 @@
             <div class="d-flex align-items-center justify-content-between mb-3">
                 <div class="d-flex align-items-center gap-2">
                     <h6 class="fw-bold mb-0" id="current-folder-title">Inbox</h6>
-                    <button class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1 py-1" onclick="refreshActiveAccountEmails(this)" title="Sync Emails">
+                    <button class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1 py-1" onclick="refreshActiveAccountEmails(this)" title="Manual Sync Emails">
                         <i class="bi bi-arrow-clockwise" id="sync-icon"></i> <span class="d-none d-lg-inline small">Sync</span>
                     </button>
+                    <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill small px-2 py-1 ms-1 d-none d-md-inline-flex align-items-center" id="live-sync-indicator" title="Live Auto-Sync Active (Thunderbird-style live drop)">
+                        <i class="bi bi-broadcast me-1"></i> Live Sync
+                    </span>
                 </div>
                 <div class="input-group input-group-sm w-50">
                     <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-search"></i></span>

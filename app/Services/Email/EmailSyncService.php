@@ -2,6 +2,7 @@
 
 namespace App\Services\Email;
 
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -22,26 +23,39 @@ class EmailSyncService
     }
 
     /**
-     * Sync an email account.
+     * Sync an email account safely with atomic concurrency lock.
      */
     public function syncAccount(int $accountId): array
     {
         $account = DB::table('email_accounts')->where('id', $accountId)->first();
         if (!$account) {
-            return ['success' => false, 'message' => 'Account not found.'];
+            return ['success' => false, 'message' => 'Account not found.', 'synced_count' => 0];
         }
 
-        // Check if credentials are placeholders or if host is local/empty
-        $isPlaceholder = empty($account->imap_host) || 
-                         str_contains($account->imap_host, 'example.com') || 
-                         str_contains($account->imap_user, 'example') ||
-                         $account->imap_host === 'localhost';
+        // Concurrency Lock per account: prevent simultaneous background / manual sync overlaps
+        $lockKey = "email_sync_account_{$accountId}";
+        $lock = Cache::lock($lockKey, 60);
 
-        if ($isPlaceholder) {
-            return $this->runSimulation($account);
+        if (!$lock->get()) {
+            return [
+                'success' => true,
+                'already_syncing' => true,
+                'synced_count' => 0,
+                'message' => 'Account is currently being synchronized in another process.'
+            ];
         }
 
         try {
+            // Check if credentials are placeholders or if host is local/empty
+            $isPlaceholder = empty($account->imap_host) || 
+                             str_contains($account->imap_host, 'example.com') || 
+                             str_contains($account->imap_user, 'example') ||
+                             $account->imap_host === 'localhost';
+
+            if ($isPlaceholder) {
+                return $this->runSimulation($account);
+            }
+
             // Attempt to connect via IMAP socket client
             $imap = new ImapSocketClient(
                 $account->imap_host,
@@ -56,14 +70,15 @@ class EmailSyncService
                 return [
                     'success' => false,
                     'message' => 'IMAP login failed. Please verify your email credentials or app password.',
-                    'logs' => $imap->getLogs()
+                    'logs' => $imap->getLogs(),
+                    'synced_count' => 0
                 ];
             }
 
             $select = $imap->selectFolder('INBOX');
             if (!$select['ok']) {
                 $imap->disconnect();
-                return ['success' => false, 'message' => 'Failed to select INBOX.'];
+                return ['success' => false, 'message' => 'Failed to select INBOX.', 'synced_count' => 0];
             }
 
             // Determine search criteria based on last sync time
@@ -180,17 +195,21 @@ class EmailSyncService
             ]);
 
             $imap->disconnect();
-            return ['success' => true, 'message' => "Successfully synced {$syncedCount} new emails."];
+            return ['success' => true, 'synced_count' => $syncedCount, 'message' => "Successfully synced {$syncedCount} new emails."];
 
         } catch (\Exception $e) {
             Log::error("IMAP sync error: " . $e->getMessage());
             return [
                 'success' => false,
+                'synced_count' => 0,
                 'message' => 'IMAP sync failed: ' . $e->getMessage(),
                 'logs' => isset($imap) ? $imap->getLogs() : [$e->getMessage()]
             ];
+        } finally {
+            $lock->release();
         }
     }
+
 
     /**
      * Save parsed email to database, handling attachments and contacts creation.
@@ -677,6 +696,6 @@ class EmailSyncService
             $message = $warning . " " . $message;
         }
 
-        return ['success' => true, 'message' => $message];
+        return ['success' => true, 'synced_count' => $syncedCount, 'message' => $message];
     }
 }

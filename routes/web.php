@@ -307,6 +307,7 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/api/email/toggle-star/{id}', [EmailController::class, 'toggleStar']);
     Route::post('/api/email/move-folder/{id}', [EmailController::class, 'moveFolder']);
     Route::post('/api/email/sync/{id}', [EmailController::class, 'sync']);
+    Route::match(['get', 'post'], '/api/email/auto-sync', [EmailController::class, 'autoSync']);
     Route::post('/api/email/switch-account', [EmailController::class, 'switchAccount']);
     Route::post('/api/email/contacts/store', [EmailController::class, 'storeContact']);
     Route::post('/api/email/contacts/delete/{id}', [EmailController::class, 'deleteContact']);

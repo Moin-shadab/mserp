@@ -422,6 +422,57 @@ class EmailController extends Controller
     }
 
     /**
+     * Auto sync active user's email accounts in background.
+     */
+    public function autoSync(Request $request)
+    {
+        $this->checkAnyEmailPermission();
+        $account = $this->getActiveAccount();
+        if (!$account) {
+            return response()->json(['success' => true, 'new_emails_count' => 0, 'message' => 'No active email account.']);
+        }
+
+        $result = $this->syncService->syncAccount($account->id);
+
+        $counts = [
+            'INBOX' => 0,
+            'SENT' => 0,
+            'DRAFTS' => 0,
+            'TRASH' => 0,
+            'SPAM' => 0,
+            'ARCHIVE' => 0,
+            'STARRED' => 0,
+        ];
+
+        $rawCounts = DB::table('emails')
+            ->where('email_account_id', $account->id)
+            ->select('folder', DB::raw('count(*) as cnt'))
+            ->groupBy('folder')
+            ->get();
+
+        foreach ($rawCounts as $rc) {
+            if (array_key_exists($rc->folder, $counts)) {
+                $counts[$rc->folder] = $rc->cnt;
+            }
+        }
+
+        $counts['STARRED'] = DB::table('emails')
+            ->where('email_account_id', $account->id)
+            ->where('is_starred', true)
+            ->count();
+
+        $newCount = $result['synced_count'] ?? 0;
+
+        return response()->json([
+            'success' => true,
+            'new_emails_count' => $newCount,
+            'already_syncing' => $result['already_syncing'] ?? false,
+            'message' => $result['message'] ?? 'Auto sync completed.',
+            'folder_counts' => $counts
+        ]);
+    }
+
+    /**
      * Fetch emails for AG Grid list.
      */
     public function getEmailList(Request $request)
