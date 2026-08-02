@@ -116,77 +116,103 @@ class EmailSyncService
                 }
             }
 
-            // Fetch overviews in batches to optimize performance (e.g. 100 at a time)
+            // Fetch and process new emails in batches of 25 to optimize socket & DB performance
             $newUids = array_slice($newUids, 0, 100); // Sync max 100 new emails per sync
             if (!empty($newUids)) {
+                $batches = array_chunk($newUids, 25);
                 $overviews = $imap->fetchOverviews($newUids);
-                
-                foreach ($newUids as $uid) {
-                    if (!isset($overviews[$uid])) continue;
-                    $ov = $overviews[$uid];
 
-                    // Check duplicate by message_id in the target folder
-                    $messageId = $ov['message_id'];
-                    if (!empty($messageId)) {
-                        $existingEmail = DB::table('emails')
-                            ->where('email_account_id', $accountId)
-                            ->where('message_id', $messageId)
-                            ->where('folder', 'INBOX')
-                            ->first();
-                        
-                        if ($existingEmail) {
-                            // Update UID if it changed (e.g. moved folder) and continue
-                            DB::table('emails')
-                                ->where('id', $existingEmail->id)
-                                ->update([
-                                    'uid' => $uid,
-                                    'updated_at' => now()
-                                ]);
-                            continue;
+                foreach ($batches as $batch) {
+                    DB::transaction(function () use ($account, $accountId, $imap, $batch, $overviews, &$syncedCount) {
+                        foreach ($batch as $uid) {
+                            $rawMime = null;
+                            try {
+                                $rawMime = $imap->fetchRawEmail((int)$uid);
+                            } catch (\Exception $ex) {
+                                Log::warning("Could not fetch raw email for UID {$uid}: " . $ex->getMessage());
+                            }
+
+                            if (!empty($rawMime)) {
+                                $this->saveParsedEmail($account, $rawMime, $uid, 'INBOX');
+                                $syncedCount++;
+                            } elseif (isset($overviews[$uid])) {
+                                // Fallback to overview if raw mime fetch was empty
+                                $ov = $overviews[$uid];
+                                $messageId = trim($ov['message_id'] ?? '', ' <>');
+                                
+                                $existing = null;
+                                if (!empty($messageId)) {
+                                    $existing = DB::table('emails')
+                                        ->where('email_account_id', $accountId)
+                                        ->where(function($q) use ($messageId) {
+                                            $q->where('message_id', $messageId)
+                                              ->orWhere('message_id', '<' . $messageId . '>');
+                                        })
+                                        ->first();
+                                }
+
+                                if (!$existing) {
+                                    $dateStr = $ov['date_sent'];
+                                    $ts = $dateStr ? strtotime($dateStr) : false;
+                                    $dateSent = ($ts !== false && $ts > 0) ? date('Y-m-d H:i:s', $ts) : now();
+
+                                    $subjectStr = $ov['subject'] ?? '';
+                                    $cleanSubject = trim(preg_replace('/^((Re|Fwd|Fw):\s*)+/i', '', $subjectStr));
+                                    $threadId = null;
+
+                                    if (preg_match('/^((Re|Fwd|Fw):\s*)+/i', $subjectStr) && !empty($cleanSubject)) {
+                                        $parent = DB::table('emails')
+                                            ->where('email_account_id', $accountId)
+                                            ->where('created_at', '>=', now()->subDays(30))
+                                            ->where(function($q) use ($cleanSubject) {
+                                                $q->where('subject', $cleanSubject)
+                                                  ->orWhere('subject', 'like', 'Re:%' . $cleanSubject);
+                                            })
+                                            ->first();
+                                        if ($parent) {
+                                            $threadId = $parent->thread_id;
+                                        }
+                                    }
+                                    if (!$threadId) {
+                                        $threadId = (string) Str::uuid();
+                                    }
+
+                                    DB::table('emails')->insert([
+                                        'email_account_id' => $accountId,
+                                        'message_id' => $messageId ?: ('<' . time() . '.' . uniqid() . '@mserp.local>'),
+                                        'thread_id' => $threadId,
+                                        'uid' => $uid,
+                                        'from_address' => $ov['from_address'],
+                                        'from_name' => $ov['from_name'],
+                                        'to_address' => $ov['to_address'],
+                                        'cc_address' => $ov['cc_address'],
+                                        'bcc_address' => $ov['bcc_address'],
+                                        'subject' => $ov['subject'],
+                                        'date_sent' => $dateSent,
+                                        'folder' => 'INBOX',
+                                        'is_read' => $ov['is_read'],
+                                        'is_starred' => $ov['is_starred'],
+                                        'has_attachments' => false,
+                                        'created_at' => now(),
+                                        'updated_at' => now(),
+                                    ]);
+
+                                    $assignedUserIds = DB::table('email_account_users')
+                                        ->where('email_account_id', $accountId)
+                                        ->pluck('user_id');
+                                    foreach ($assignedUserIds as $uId) {
+                                        $this->autoCreateContact($uId, $ov['from_address'], $ov['from_name']);
+                                    }
+                                    $syncedCount++;
+                                }
+                            }
                         }
-                    }
-
-                    // Parse date_sent safely
-                    $dateStr = $ov['date_sent'];
-                    $ts = $dateStr ? strtotime($dateStr) : false;
-                    $dateSent = ($ts !== false && $ts > 0) ? date('Y-m-d H:i:s', $ts) : now();
-
-                    // Insert lightweight header-only email record (lazy-load body later)
-                    $cleanSubject = preg_replace('/^(Re|Fwd):\s*/i', '', $ov['subject']);
-                    $threadId = DB::table('emails')
-                        ->where('email_account_id', $accountId)
-                        ->where('subject', 'like', '%' . $cleanSubject . '%')
-                        ->value('thread_id') ?: (string) Str::uuid();
-
-                    DB::table('emails')->insert([
-                        'email_account_id' => $accountId,
-                        'message_id' => $messageId ?: ('<' . time() . '.' . uniqid() . '@mserp.local>'),
-                        'thread_id' => $threadId,
-                        'uid' => $uid,
-                        'from_address' => $ov['from_address'],
-                        'from_name' => $ov['from_name'],
-                        'to_address' => $ov['to_address'],
-                        'cc_address' => $ov['cc_address'],
-                        'bcc_address' => $ov['bcc_address'],
-                        'subject' => $ov['subject'],
-                        'date_sent' => $dateSent,
-                        'folder' => 'INBOX',
-                        'is_read' => $ov['is_read'],
-                        'is_starred' => $ov['is_starred'],
-                        'has_attachments' => false, // Will determine during lazy load
-                        'created_at' => now(),
-                        'updated_at' => now(),
-                    ]);
-
-                    $assignedUserIds = DB::table('email_account_users')
-                        ->where('email_account_id', $account->id)
-                        ->pluck('user_id');
-                    foreach ($assignedUserIds as $uId) {
-                        $this->autoCreateContact($uId, $ov['from_address'], $ov['from_name']);
-                    }
-                    $syncedCount++;
+                    });
                 }
             }
+
+            // Cleanup any duplicate email records across folder boundaries
+            $this->cleanupDuplicateEmails($accountId);
 
             // Update last_sync_at timestamp in email_accounts
             DB::table('email_accounts')->where('id', $accountId)->update([
@@ -342,16 +368,26 @@ class EmailSyncService
                 }
             }
 
-            // 3. Try Subject-based matching
-            if (empty($threadId)) {
-                $cleanSubject = preg_replace('/^(Re|Fwd):\s*/i', '', $subject);
-                $threadId = DB::table('emails')
-                    ->where('email_account_id', $account->id)
-                    ->where('subject', 'like', '%' . $cleanSubject . '%')
-                    ->value('thread_id');
+            // 3. Try Subject-based matching ONLY if explicit Re:/Fwd: prefix exists
+            if (empty($threadId) && preg_match('/^((Re|Fwd|Fw):\s*)+/i', $subject)) {
+                $cleanSubject = trim(preg_replace('/^((Re|Fwd|Fw):\s*)+/i', '', $subject));
+                if (!empty($cleanSubject)) {
+                    $parent = DB::table('emails')
+                        ->where('email_account_id', $account->id)
+                        ->where('created_at', '>=', now()->subDays(30))
+                        ->where(function($q) use ($cleanSubject) {
+                            $q->where('subject', $cleanSubject)
+                              ->orWhere('subject', 'like', 'Re:%' . $cleanSubject)
+                              ->orWhere('subject', 'like', 'Fwd:%' . $cleanSubject);
+                        })
+                        ->first();
+                    if ($parent) {
+                        $threadId = $parent->thread_id;
+                    }
+                }
             }
 
-            // 4. Default to new UUID
+            // 4. Default to new UUID for new topics
             if (empty($threadId)) {
                 $threadId = (string) Str::uuid();
             }
@@ -368,10 +404,13 @@ class EmailSyncService
             // Deduplication check: check if email already exists by message_id in this folder
             $existing = null;
             if (!empty($messageId)) {
+                $cleanMsgId = trim($messageId, ' <>');
                 $existing = DB::table('emails')
                     ->where('email_account_id', $account->id)
-                    ->where('message_id', $messageId)
-                    ->where('folder', $folder)
+                    ->where(function($q) use ($cleanMsgId) {
+                        $q->where('message_id', $cleanMsgId)
+                          ->orWhere('message_id', '<' . $cleanMsgId . '>');
+                    })
                     ->first();
             }
 
@@ -549,12 +588,12 @@ class EmailSyncService
 
         $readablePath = "email_attachments/{$accountEmailDir}/{$year}/{$month}/{$day}/{$messageIdHash}/{$safeFileName}";
 
-        $absoluteCasPath = storage_path('app/' . $casPath);
-        $absoluteReadablePath = storage_path('app/' . $readablePath);
+        $absoluteCasPath = Storage::path($casPath);
+        $absoluteReadablePath = Storage::path($readablePath);
 
         if (!file_exists($absoluteReadablePath)) {
             if (file_exists($absoluteCasPath)) {
-                $targetDir = storage_path('app/' . dirname($readablePath));
+                $targetDir = dirname($absoluteReadablePath);
                 if (!file_exists($targetDir)) {
                     mkdir($targetDir, 0755, true);
                 }
@@ -590,6 +629,91 @@ class EmailSyncService
             'sha256' => $sha256,
             'created_at' => now(),
         ]);
+    }
+
+    /**
+     * Clean up duplicate email records across folders for an account.
+     */
+    public function cleanupDuplicateEmails(int $accountId): int
+    {
+        $duplicates = DB::table('emails')
+            ->where('email_account_id', $accountId)
+            ->whereNotNull('message_id')
+            ->where('message_id', '!=', '')
+            ->select('message_id', DB::raw('COUNT(*) as count'))
+            ->groupBy('message_id')
+            ->having('count', '>', 1)
+            ->get();
+
+        $deletedCount = 0;
+        foreach ($duplicates as $dup) {
+            $ids = DB::table('emails')
+                ->where('email_account_id', $accountId)
+                ->where('message_id', $dup->message_id)
+                ->orderBy('id', 'asc')
+                ->pluck('id')
+                ->toArray();
+
+            $keepId = array_shift($ids);
+            if (!empty($ids)) {
+                DB::table('email_bodies')->whereIn('email_id', $ids)->delete();
+                DB::table('email_attachments')->whereIn('email_id', $ids)->delete();
+                DB::table('emails')->whereIn('id', $ids)->delete();
+                $deletedCount += count($ids);
+            }
+        }
+
+        $this->recalculateAccountThreadIds($accountId);
+
+        return $deletedCount;
+    }
+
+    /**
+     * Re-calculate thread IDs for all emails in an account using strict RFC headers
+     * and exact normalized subject matching.
+     */
+    public function recalculateAccountThreadIds(int $accountId): void
+    {
+        $emails = DB::table('emails')
+            ->where('email_account_id', $accountId)
+            ->orderBy('id', 'asc')
+            ->get();
+
+        $threadMap = []; // message_id => thread_id
+        $subjectMap = []; // clean_subject => thread_id
+
+        foreach ($emails as $email) {
+            $cleanMsgId = !empty($email->message_id) ? trim($email->message_id, ' <>') : null;
+            $inReplyTo = !empty($email->in_reply_to) ? trim($email->in_reply_to, ' <>') : null;
+            $subject = $email->subject ?? '';
+            $isReplyPrefix = preg_match('/^((Re|Fwd|Fw):\s*)+/i', $subject);
+            $cleanSubject = trim(preg_replace('/^((Re|Fwd|Fw):\s*)+/i', '', $subject));
+
+            $assignedThreadId = null;
+
+            if ($inReplyTo && isset($threadMap[$inReplyTo])) {
+                $assignedThreadId = $threadMap[$inReplyTo];
+            }
+
+            if (!$assignedThreadId && $isReplyPrefix && !empty($cleanSubject) && isset($subjectMap[strtolower($cleanSubject)])) {
+                $assignedThreadId = $subjectMap[strtolower($cleanSubject)];
+            }
+
+            if (!$assignedThreadId) {
+                $assignedThreadId = $email->thread_id ?: (string) Str::uuid();
+            }
+
+            if ($cleanMsgId) {
+                $threadMap[$cleanMsgId] = $assignedThreadId;
+            }
+            if (!empty($cleanSubject)) {
+                $subjectMap[strtolower($cleanSubject)] = $assignedThreadId;
+            }
+
+            if ($email->thread_id !== $assignedThreadId) {
+                DB::table('emails')->where('id', $email->id)->update(['thread_id' => $assignedThreadId]);
+            }
+        }
     }
 
     /**

@@ -596,7 +596,7 @@
             loadPage('/erp/' + slug);
         }
 
-        function loadEmailApp(e, route) {
+        function loadEmailApp(e, route, params = null) {
             if (e) e.preventDefault();
             
             const item = Array.from(document.querySelectorAll('#dynamic-nav .menu-item')).find(el => el.onclick && el.onclick.toString().includes('email-' + route));
@@ -604,7 +604,15 @@
                 setActiveMenuItem(item);
             }
             
-            loadPage('/erp/email-' + route);
+            let url = '/erp/email-' + route;
+            if (params && typeof params === 'object') {
+                const query = new URLSearchParams(params).toString();
+                if (query) {
+                    url += '?' + query;
+                }
+            }
+
+            loadPage(url);
         }
 
         function loadReportBuilder(e) {

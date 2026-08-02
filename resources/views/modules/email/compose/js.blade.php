@@ -162,23 +162,29 @@ function saveAsDraft(silent = false) {
     const subject = cSubjectInput ? cSubjectInput.value : '';
     const bodyHtml = quill.root.innerHTML;
 
-    const data = {
-        draft_id: draftId,
-        thread_id: threadId,
-        to: to,
-        cc: cc,
-        bcc: bcc,
-        subject: subject,
-        body_html: bodyHtml
-    };
+    const inReplyToInput = document.getElementById('in-reply-to');
+    const inReplyTo = inReplyToInput ? inReplyToInput.value : '';
+
+    const formData = new FormData();
+    if (draftId) formData.append('draft_id', draftId);
+    if (threadId) formData.append('thread_id', threadId);
+    if (inReplyTo) formData.append('in_reply_to', inReplyTo);
+    formData.append('to', to);
+    formData.append('cc', cc);
+    formData.append('bcc', bcc);
+    formData.append('subject', subject);
+    formData.append('body_html', bodyHtml);
+
+    selectedFiles.forEach(file => {
+        formData.append('attachments[]', file);
+    });
 
     fetch('/api/email/save-draft', {
         method: 'POST',
         headers: {
-            'Content-Type': 'application/json',
             'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
         },
-        body: JSON.stringify(data)
+        body: formData
     })
     .then(r => r.json())
     .then(res => {

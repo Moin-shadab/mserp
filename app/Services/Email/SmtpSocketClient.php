@@ -276,14 +276,21 @@ class SmtpSocketClient extends SocketClient
                 $path = $att['path'] ?? null;
                 $name = $att['name'] ?? 'attachment';
                 $mime = $att['mime_type'] ?? 'application/octet-stream';
-                
-                if ($path && file_exists($path)) {
+                $content = null;
+
+                if (isset($att['content']) && !empty($att['content'])) {
+                    $content = $att['content'];
+                } elseif ($path && file_exists($path)) {
                     $content = file_get_contents($path);
+                }
+
+                if ($content !== null) {
                     $encoded = chunk_split(base64_encode($content));
+                    $encodedName = "=?UTF-8?B?" . base64_encode($name) . "?=";
 
                     $body[] = "--{$boundaryMixed}";
-                    $body[] = "Content-Type: {$mime}; name=\"{$name}\"";
-                    $body[] = "Content-Disposition: attachment; filename=\"{$name}\"";
+                    $body[] = "Content-Type: {$mime}; name=\"{$encodedName}\"";
+                    $body[] = "Content-Disposition: attachment; filename=\"{$encodedName}\"";
                     $body[] = "Content-Transfer-Encoding: base64";
                     $body[] = "";
                     $body[] = $encoded;

@@ -255,6 +255,7 @@ class EmailController extends Controller
 
         // Check if loading as reply/forward context
         $replyToId = $request->input('reply_to');
+        $mode = $request->input('mode', 'reply');
         $replyMail = null;
         if ($replyToId) {
             $replyMail = DB::table('emails')
@@ -262,6 +263,39 @@ class EmailController extends Controller
                 ->where('emails.id', $replyToId)
                 ->select('emails.*', 'email_bodies.body_html', 'email_bodies.body_text')
                 ->first();
+
+            if ($replyMail) {
+                $replyMail->mode = $mode;
+                $cleanSubj = trim(preg_replace('/^((Re|Fwd|Fw):\s*)+/i', '', $replyMail->subject ?? ''));
+
+                if ($mode === 'forward') {
+                    $replyMail->compose_subject = 'Fwd: ' . $cleanSubj;
+                    $replyMail->compose_to = '';
+                    $replyMail->compose_cc = '';
+                } elseif ($mode === 'reply_all') {
+                    $replyMail->compose_subject = 'Re: ' . $cleanSubj;
+                    $allRecipients = array_filter(array_map('trim', explode(',', $replyMail->from_address . ',' . $replyMail->to_address)));
+                    $allRecipients = array_values(array_filter($allRecipients, function($addr) use ($account) {
+                        return strtolower($addr) !== strtolower($account->email ?? '');
+                    }));
+                    if (empty($allRecipients)) {
+                        $allRecipients = [$replyMail->from_address];
+                    }
+                    $replyMail->compose_to = implode(', ', array_unique($allRecipients));
+                    $replyMail->compose_cc = $replyMail->cc_address ?? '';
+                } else { // 'reply'
+                    $replyMail->compose_subject = 'Re: ' . $cleanSubj;
+                    $replyMail->compose_to = $replyMail->from_address;
+                    $replyMail->compose_cc = '';
+                }
+
+                // Attach original attachments if mode is forward
+                if ($mode === 'forward') {
+                    $replyMail->forward_attachments = DB::table('email_attachments')
+                        ->where('email_id', $replyMail->id)
+                        ->get();
+                }
+            }
         }
 
         // Fetch contacts for autocompletion
@@ -422,6 +456,32 @@ class EmailController extends Controller
     }
 
     /**
+     * Toggle Live Auto-Sync DB flag for active account.
+     */
+    public function toggleLiveSync(Request $request)
+    {
+        $this->checkAnyEmailPermission();
+        $account = $this->getActiveAccount();
+        if (!$account) {
+            return response()->json(['error' => 'No active account.'], 404);
+        }
+
+        $rawLiveVal = $account->is_live_sync_enabled;
+        $current = ($rawLiveVal === null || $rawLiveVal == 1 || $rawLiveVal === true || $rawLiveVal === '1');
+        $newStatus = !$current;
+
+        DB::table('email_accounts')
+            ->where('id', $account->id)
+            ->update(['is_live_sync_enabled' => $newStatus ? 1 : 0, 'updated_at' => now()]);
+
+        return response()->json([
+            'success' => true,
+            'is_live_sync_enabled' => $newStatus,
+            'message' => $newStatus ? 'Live auto-sync enabled.' : 'Live auto-sync disabled.'
+        ]);
+    }
+
+    /**
      * Auto sync active user's email accounts in background.
      */
     public function autoSync(Request $request)
@@ -432,7 +492,17 @@ class EmailController extends Controller
             return response()->json(['success' => true, 'new_emails_count' => 0, 'message' => 'No active email account.']);
         }
 
-        $result = $this->syncService->syncAccount($account->id);
+        // Check if DB column specifies live refresh enabled (1 = enabled, 0 = disabled)
+        $rawLiveVal = $account->is_live_sync_enabled;
+        $isLiveSyncEnabled = ($rawLiveVal === null || $rawLiveVal == 1 || $rawLiveVal === true || $rawLiveVal === '1');
+
+        $newCount = 0;
+        $result = ['already_syncing' => false, 'message' => 'Live sync is disabled for this account.'];
+
+        if ($isLiveSyncEnabled) {
+            $result = $this->syncService->syncAccount($account->id);
+            $newCount = $result['synced_count'] ?? 0;
+        }
 
         $counts = [
             'INBOX' => 0,
@@ -461,19 +531,18 @@ class EmailController extends Controller
             ->where('is_starred', true)
             ->count();
 
-        $newCount = $result['synced_count'] ?? 0;
-
         return response()->json([
             'success' => true,
+            'is_live_sync_enabled' => $isLiveSyncEnabled,
             'new_emails_count' => $newCount,
             'already_syncing' => $result['already_syncing'] ?? false,
-            'message' => $result['message'] ?? 'Auto sync completed.',
+            'message' => $result['message'] ?? 'Auto sync status checked.',
             'folder_counts' => $counts
         ]);
     }
 
     /**
-     * Fetch emails for AG Grid list.
+     * Fetch emails for rich interactive list.
      */
     public function getEmailList(Request $request)
     {
@@ -485,9 +554,13 @@ class EmailController extends Controller
 
         $folder = $request->input('folder', 'INBOX');
         $label = $request->input('label');
+        $filter = $request->input('filter', 'all'); // 'all', 'unread', 'starred', 'attachments'
+        $dateFrom = $request->input('date_from');
+        $dateTo = $request->input('date_to');
         
         $query = DB::table('emails')
-            ->where('email_account_id', $account->id);
+            ->leftJoin('email_bodies', 'emails.id', '=', 'email_bodies.email_id')
+            ->where('emails.email_account_id', $account->id);
 
         $selectCols = [
             'emails.id',
@@ -507,7 +580,9 @@ class EmailController extends Controller
             'emails.is_starred',
             'emails.has_attachments',
             'emails.created_at',
-            'emails.updated_at'
+            'emails.updated_at',
+            'email_bodies.body_text',
+            'email_bodies.body_html'
         ];
 
         if ($label) {
@@ -518,17 +593,34 @@ class EmailController extends Controller
         } else {
             $query->select($selectCols);
             if ($folder === 'STARRED') {
-                $query->where('is_starred', true);
+                $query->where('emails.is_starred', true);
             } else {
-                $query->where('folder', $folder);
+                $query->where('emails.folder', $folder);
             }
         }
 
-        // Parse search term (e.g. from:sophia subject:revision urgent)
+        // Apply Quick Pill Filters
+        if ($filter === 'unread') {
+            $query->where('emails.is_read', false);
+        } elseif ($filter === 'starred') {
+            $query->where('emails.is_starred', true);
+        } elseif ($filter === 'attachments') {
+            $query->where('emails.has_attachments', true);
+        }
+
+        // Apply Date Range filters
+        if (!empty($dateFrom)) {
+            $query->where('emails.date_sent', '>=', $dateFrom . ' 00:00:00');
+        }
+        if (!empty($dateTo)) {
+            $query->where('emails.date_sent', '<=', $dateTo . ' 23:59:59');
+        }
+
+        // Parse omnibox search term (e.g. from:sophia subject:revision is:unread has:attachment)
         $search = $request->input('search');
         if (!empty($search)) {
             $terms = [];
-            preg_match_all('/(from|to|subject|label):("[^"]+"|[^\s]+)/i', $search, $matches, PREG_SET_ORDER);
+            preg_match_all('/(from|to|subject|label|is|has):("[^"]+"|[^\s]+)/i', $search, $matches, PREG_SET_ORDER);
             
             $generalSearch = $search;
             foreach ($matches as $m) {
@@ -551,6 +643,15 @@ class EmailController extends Controller
             if (isset($terms['subject'])) {
                 $query->where('emails.subject', 'like', '%' . $terms['subject'] . '%');
             }
+            if (isset($terms['is'])) {
+                $isVal = strtolower($terms['is']);
+                if ($isVal === 'unread') $query->where('emails.is_read', false);
+                if ($isVal === 'read') $query->where('emails.is_read', true);
+                if ($isVal === 'starred') $query->where('emails.is_starred', true);
+            }
+            if (isset($terms['has']) && strtolower($terms['has']) === 'attachment') {
+                $query->where('emails.has_attachments', true);
+            }
             if (isset($terms['label'])) {
                 $query->whereExists(function($q) use ($terms) {
                     $q->select(DB::raw(1))
@@ -566,12 +667,7 @@ class EmailController extends Controller
                       ->orWhere('emails.from_address', 'like', '%' . $generalSearch . '%')
                       ->orWhere('emails.from_name', 'like', '%' . $generalSearch . '%')
                       ->orWhere('emails.to_address', 'like', '%' . $generalSearch . '%')
-                      ->orWhereExists(function($sub) use ($generalSearch) {
-                          $sub->select(DB::raw(1))
-                              ->from('email_bodies')
-                              ->whereColumn('email_bodies.email_id', 'emails.id')
-                              ->where('email_bodies.body_text', 'like', '%' . $generalSearch . '%');
-                      });
+                      ->orWhere('email_bodies.body_text', 'like', '%' . $generalSearch . '%');
                 });
             }
         }
@@ -586,9 +682,30 @@ class EmailController extends Controller
                 ->where('email_label_emails.email_id', $email->id)
                 ->select('email_labels.id', 'email_labels.name', 'email_labels.color')
                 ->get();
+
+            $email->attachments = [];
+            if ($email->has_attachments) {
+                $email->attachments = DB::table('email_attachments')
+                    ->where('email_id', $email->id)
+                    ->select('id', 'filename', 'file_size', 'mime_type', 'is_inline')
+                    ->get();
+            }
+
+            // Generate high-quality text snippet for mail list preview card
+            $plainText = $email->body_text ?? strip_tags($email->body_html ?? '');
+            $plainText = trim(preg_replace('/\s+/', ' ', $plainText));
+            $email->snippet = Str::limit($plainText, 140, '...');
+
+            // ISO date for exact timezone calculation on frontend
+            $ts = strtotime($email->date_sent);
+            $email->date_sent_iso = $ts ? date('c', $ts) : now()->toIso8601String();
+
             $email->is_read = (bool)$email->is_read;
             $email->is_starred = (bool)$email->is_starred;
             $email->has_attachments = (bool)$email->has_attachments;
+
+            // Remove full body strings from list array payload to keep JSON response super light & ultra fast
+            unset($email->body_text, $email->body_html);
         }
 
         return response()->json(['data' => $emails]);
@@ -604,6 +721,8 @@ class EmailController extends Controller
         if (!$account) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
+
+        $this->syncService->cleanupDuplicateEmails($account->id);
 
         $messages = DB::table('emails')
             ->leftJoin('email_bodies', 'emails.id', '=', 'email_bodies.email_id')
@@ -701,6 +820,19 @@ class EmailController extends Controller
             $imap->disconnect();
         }
 
+        // Deduplicate messages in thread by message_id & body presence
+        $uniqueMessages = collect();
+        $seenKeys = [];
+        foreach ($messages as $msg) {
+            $cleanId = $msg->message_id ? trim($msg->message_id, ' <>') : null;
+            $key = $cleanId ?: ('id_' . $msg->id);
+            if (!isset($seenKeys[$key])) {
+                $seenKeys[$key] = true;
+                $uniqueMessages->push($msg);
+            }
+        }
+        $messages = $uniqueMessages;
+
         // Mark them as read
         DB::table('emails')
             ->where('email_account_id', $account->id)
@@ -785,7 +917,8 @@ class EmailController extends Controller
             foreach ($request->file('attachments') as $file) {
                 $path = $file->store('temp_attachments');
                 $attachments[] = [
-                    'path' => storage_path('app/' . $path),
+                    'path' => Storage::path($path),
+                    'relative_path' => $path,
                     'name' => $file->getClientOriginalName(),
                     'mime_type' => $file->getMimeType()
                 ];
@@ -848,14 +981,40 @@ class EmailController extends Controller
         }
 
         if ($sentOk) {
-            // Write to SENT folder
-            $cleanSubject = preg_replace('/^(Re|Fwd):\s*/i', '', $subject);
             $threadId = $request->input('thread_id');
-            if (!$threadId) {
-                $threadId = DB::table('emails')
+            $cleanSubject = trim(preg_replace('/^((Re|Fwd|Fw):\s*)+/i', '', $subject));
+
+            if (!$threadId && !empty($inReplyToClean)) {
+                $parentMail = DB::table('emails')
                     ->where('email_account_id', $account->id)
-                    ->where('subject', 'like', '%' . $cleanSubject . '%')
-                    ->value('thread_id') ?: (string) Str::uuid();
+                    ->where(function($q) use ($inReplyToClean) {
+                        $q->where('message_id', $inReplyToClean)
+                          ->orWhere('message_id', '<' . $inReplyToClean . '>');
+                    })
+                    ->first();
+                if ($parentMail) {
+                    $threadId = $parentMail->thread_id;
+                }
+            }
+
+            if (!$threadId && preg_match('/^((Re|Fwd|Fw):\s*)+/i', $subject) && !empty($cleanSubject)) {
+                $parentMail = DB::table('emails')
+                    ->where('email_account_id', $account->id)
+                    ->where('created_at', '>=', now()->subDays(30))
+                    ->where(function($q) use ($cleanSubject) {
+                        $q->where('subject', $cleanSubject)
+                          ->orWhere('subject', 'Re: ' . $cleanSubject)
+                          ->orWhere('subject', 'RE: ' . $cleanSubject)
+                          ->orWhere('subject', 'Fwd: ' . $cleanSubject);
+                    })
+                    ->first();
+                if ($parentMail) {
+                    $threadId = $parentMail->thread_id;
+                }
+            }
+
+            if (!$threadId) {
+                $threadId = (string) Str::uuid();
             }
 
             $messageId = '<' . time() . '.' . uniqid() . '@mserp.local>';
@@ -907,8 +1066,11 @@ class EmailController extends Controller
                     );
 
                     // Clean up the temporary attachment file
-                    $tempRelativePath = str_replace(storage_path('app/'), '', $att['path']);
-                    Storage::delete($tempRelativePath);
+                    if (!empty($att['relative_path'])) {
+                        Storage::delete($att['relative_path']);
+                    } elseif (file_exists($att['path'])) {
+                        @unlink($att['path']);
+                    }
                 }
             }
 
@@ -934,6 +1096,20 @@ class EmailController extends Controller
         $bodyHtml = $request->input('body_html', '');
         $bodyText = strip_tags($bodyHtml);
 
+        // Process attachments for draft
+        $attachments = [];
+        if ($request->hasFile('attachments')) {
+            foreach ($request->file('attachments') as $file) {
+                $path = $file->store('temp_attachments');
+                $attachments[] = [
+                    'path' => Storage::path($path),
+                    'relative_path' => $path,
+                    'name' => $file->getClientOriginalName(),
+                    'mime_type' => $file->getMimeType()
+                ];
+            }
+        }
+
         $data = [
             'email_account_id' => $account->id,
             'from_address' => $account->email,
@@ -943,6 +1119,7 @@ class EmailController extends Controller
             'subject' => $subject,
             'folder' => 'DRAFTS',
             'is_read' => true,
+            'has_attachments' => !empty($attachments) || (bool)DB::table('email_attachments')->where('email_id', $draftId ?: 0)->exists(),
             'date_sent' => now(),
             'updated_at' => now(),
         ];
@@ -951,7 +1128,8 @@ class EmailController extends Controller
             DB::table('emails')->where('id', $draftId)->update($data);
             $id = $draftId;
         } else {
-            $data['thread_id'] = (string) Str::uuid();
+            $data['thread_id'] = $request->input('thread_id') ?: (string) Str::uuid();
+            $data['in_reply_to'] = $request->input('in_reply_to');
             $data['created_at'] = now();
             $id = DB::table('emails')->insertGetId($data);
         }
@@ -972,6 +1150,30 @@ class EmailController extends Controller
                 'created_at' => now(),
                 'updated_at' => now()
             ]);
+        }
+
+        // Save attachments for draft
+        if (!empty($attachments)) {
+            $msgIdForDraft = DB::table('emails')->where('id', $id)->value('message_id') ?: ('<draft.' . $id . '@mserp.local>');
+            foreach ($attachments as $att) {
+                if (file_exists($att['path'])) {
+                    $fileContent = file_get_contents($att['path']);
+                    $this->syncService->saveAttachmentCas(
+                        $fileContent,
+                        $att['name'],
+                        $att['mime_type'],
+                        now()->format('Y-m-d H:i:s'),
+                        $msgIdForDraft,
+                        $id,
+                        null,
+                        false
+                    );
+                    if (!empty($att['relative_path'])) {
+                        Storage::delete($att['relative_path']);
+                    }
+                }
+            }
+            DB::table('emails')->where('id', $id)->update(['has_attachments' => true]);
         }
 
         return response()->json(['success' => true, 'draft_id' => $id]);
@@ -1101,6 +1303,8 @@ class EmailController extends Controller
         $this->checkAnyEmailPermission();
         $ids = $request->input('ids', []);
         $action = $request->input('action');
+        $labelId = $request->input('label_id');
+
         if (empty($ids) || !$action) {
             return response()->json(['success' => false, 'error' => 'Invalid inputs.'], 400);
         }
@@ -1121,6 +1325,15 @@ class EmailController extends Controller
             case 'unread':
                 $query->update(['is_read' => false, 'updated_at' => now()]);
                 break;
+            case 'star':
+                $query->update(['is_starred' => true, 'updated_at' => now()]);
+                break;
+            case 'unstar':
+                $query->update(['is_starred' => false, 'updated_at' => now()]);
+                break;
+            case 'inbox':
+                $query->update(['folder' => 'INBOX', 'updated_at' => now()]);
+                break;
             case 'archive':
                 $query->update(['folder' => 'ARCHIVE', 'updated_at' => now()]);
                 break;
@@ -1132,6 +1345,24 @@ class EmailController extends Controller
                 break;
             case 'delete':
                 $query->delete();
+                break;
+            case 'apply_label':
+                if ($labelId) {
+                    foreach ($ids as $emailId) {
+                        DB::table('email_label_emails')->updateOrInsert([
+                            'email_id' => $emailId,
+                            'label_id' => $labelId
+                        ]);
+                    }
+                }
+                break;
+            case 'remove_label':
+                if ($labelId) {
+                    DB::table('email_label_emails')
+                        ->whereIn('email_id', $ids)
+                        ->where('label_id', $labelId)
+                        ->delete();
+                }
                 break;
         }
 
@@ -1331,10 +1562,17 @@ class EmailController extends Controller
                 $table->string('pop3_user')->nullable();
                 $table->text('pop3_password')->nullable();
                 $table->boolean('is_active')->default(true);
+                $table->boolean('is_live_sync_enabled')->default(true);
                 $table->timestamp('last_sync_at')->nullable();
                 $table->timestamps();
             });
         } else {
+            if (!Schema::hasColumn('email_accounts', 'is_live_sync_enabled')) {
+                Schema::table('email_accounts', function ($table) {
+                    $table->boolean('is_live_sync_enabled')->default(true)->after('is_active');
+                });
+                DB::table('email_accounts')->whereNull('is_live_sync_enabled')->update(['is_live_sync_enabled' => 1]);
+            }
             if (!Schema::hasColumn('email_accounts', 'last_sync_at')) {
                 Schema::table('email_accounts', function ($table) {
                     $table->timestamp('last_sync_at')->nullable()->after('is_active');
@@ -1378,7 +1616,7 @@ class EmailController extends Controller
         if (!Schema::hasTable('emails')) {
             Schema::create('emails', function ($table) {
                 $table->id();
-                $table->unsignedBigInteger('email_account_id');
+                $table->unsignedBigInteger('email_account_id')->index();
                 $table->string('message_id')->nullable()->index();
                 $table->string('in_reply_to')->nullable()->index();
                 $table->text('references')->nullable();
@@ -1390,12 +1628,15 @@ class EmailController extends Controller
                 $table->text('cc_address')->nullable();
                 $table->text('bcc_address')->nullable();
                 $table->text('subject')->nullable();
-                $table->timestamp('date_sent')->nullable();
-                $table->string('folder')->default('INBOX');
-                $table->boolean('is_read')->default(false);
-                $table->boolean('is_starred')->default(false);
+                $table->timestamp('date_sent')->nullable()->index();
+                $table->string('folder')->default('INBOX')->index();
+                $table->boolean('is_read')->default(false)->index();
+                $table->boolean('is_starred')->default(false)->index();
                 $table->boolean('has_attachments')->default(false);
                 $table->timestamps();
+
+                $table->index(['email_account_id', 'folder', 'date_sent']);
+                $table->index(['email_account_id', 'is_starred', 'date_sent']);
             });
         } else {
             if (!Schema::hasColumn('emails', 'in_reply_to')) {

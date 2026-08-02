@@ -114,7 +114,7 @@
                         <div class="row mb-3 align-items-center">
                             <label for="c-to" class="col-sm-2 col-form-label small fw-bold text-muted">To:</label>
                             <div class="col-sm-10">
-                                <input type="text" class="form-control form-control-sm" id="c-to" name="to" required placeholder="recipient@domain.com (comma separated)" value="{{ $replyMail ? $replyMail->from_address : '' }}">
+                                <input type="text" class="form-control form-control-sm" id="c-to" name="to" required placeholder="recipient@domain.com (comma separated)" value="{{ $replyMail ? ($replyMail->compose_to ?? $replyMail->from_address) : '' }}">
                             </div>
                         </div>
 
@@ -122,7 +122,7 @@
                         <div class="row mb-3 align-items-center">
                             <label for="c-cc" class="col-sm-2 col-form-label small fw-bold text-muted">CC / BCC:</label>
                             <div class="col-sm-5">
-                                <input type="text" class="form-control form-control-sm" id="c-cc" name="cc" placeholder="cc@domain.com">
+                                <input type="text" class="form-control form-control-sm" id="c-cc" name="cc" placeholder="cc@domain.com" value="{{ $replyMail ? ($replyMail->compose_cc ?? '') : '' }}">
                             </div>
                             <div class="col-sm-5">
                                 <input type="text" class="form-control form-control-sm" id="c-bcc" name="bcc" placeholder="bcc@domain.com">
@@ -133,7 +133,7 @@
                         <div class="row mb-3 align-items-center">
                             <label for="c-subject" class="col-sm-2 col-form-label small fw-bold text-muted">Subject:</label>
                             <div class="col-sm-10">
-                                <input type="text" class="form-control form-control-sm" id="c-subject" name="subject" required placeholder="Enter subject line" value="{{ $replyMail ? (str_starts_with($replyMail->subject, 'Re:') ? $replyMail->subject : 'Re: ' . $replyMail->subject) : '' }}">
+                                <input type="text" class="form-control form-control-sm" id="c-subject" name="subject" required placeholder="Enter subject line" value="{{ $replyMail ? ($replyMail->compose_subject ?? ('Re: ' . $replyMail->subject)) : '' }}">
                             </div>
                         </div>
 
@@ -143,7 +143,15 @@
                                 @if($replyMail)
                                     <br><br>
                                     <hr>
-                                    <small class="text-muted">On {{ date('M d, Y', strtotime($replyMail->date_sent)) }}, {{ $replyMail->from_name }} wrote:</small>
+                                    @if(isset($replyMail->mode) && $replyMail->mode === 'forward')
+                                        <p class="small text-muted mb-1">---------- Forwarded message ---------<br>
+                                        <strong>From:</strong> {{ $replyMail->from_name ? ($replyMail->from_name . ' <' . $replyMail->from_address . '>') : $replyMail->from_address }}<br>
+                                        <strong>Date:</strong> {{ date('r', strtotime($replyMail->date_sent)) }}<br>
+                                        <strong>Subject:</strong> {{ $replyMail->subject }}<br>
+                                        <strong>To:</strong> {{ $replyMail->to_address }}</p>
+                                    @else
+                                        <small class="text-muted">On {{ date('M d, Y H:i', strtotime($replyMail->date_sent)) }}, {{ $replyMail->from_name ?: $replyMail->from_address }} wrote:</small>
+                                    @endif
                                     <blockquote class="border-start ps-3 text-muted" style="border-color: #cbd5e1 !important;">
                                         {!! $replyMail->body_html ?: nl2br($replyMail->body_text) !!}
                                     </blockquote>

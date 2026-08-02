@@ -1,546 +1,925 @@
-// Clear existing polling intervals to avoid leaks
+// Email Inbox Thunderbird / Apple Mail Client JavaScript Logic
 if (window.emailAutoSyncInterval) {
     clearInterval(window.emailAutoSyncInterval);
     window.emailAutoSyncInterval = null;
 }
 
-// Ensure AG Grid loaded
-if (typeof agGrid === 'undefined') {
-    const gridScript = document.createElement('script');
-    gridScript.src = 'https://cdn.jsdelivr.net/npm/ag-grid-community@30.2.1/dist/ag-grid-community.min.js';
-    gridScript.onload = () => initEmailGrid();
-    document.head.appendChild(gridScript);
-} else {
-    initEmailGrid();
-}
-
-var emailGridOptions = null;
-var gridApi = null;
+var activeEmailAccountId = {{ $account->id ?? 'null' }};
+var emailsList = [];
+var selectedEmailIds = new Set();
 var activeFolder = 'INBOX';
 var activeLabel = null;
-var activeEmail = null; // Represents currently loaded email metadata
-var activeEmailAccountId = {{ $account->id ?? 'null' }};
+var activeQuickFilter = 'all';
+var activeEmail = null;
+var quickReplyAutoSaveTimer = null;
+var quickReplyFiles = [];
+var userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
 
-function initEmailGrid() {
-    const gridDiv = document.querySelector('#emailGrid');
-    if (!gridDiv) {
-        // Retry safety check if DOM is not fully painted yet
-        setTimeout(initEmailGrid, 50);
-        return;
-    }
+// Initial Load
+document.addEventListener('DOMContentLoaded', function() {
+    initEmailInboxApp();
+});
 
-    if (gridDiv.hasAttribute('data-grid-initialized')) {
-        return;
-    }
-    gridDiv.setAttribute('data-grid-initialized', 'true');
-    
-    const columnDefs = [
-        {
-            field: 'from_name',
-            headerName: 'From',
-            width: 140,
-            cellStyle: params => params.data && !params.data.is_read ? { fontWeight: 'bold' } : null
-        },
-        {
-            field: 'subject',
-            headerName: 'Subject',
-            flex: 1,
-            cellRenderer: params => {
-                if (!params.data) return params.value || '';
-                let html = '';
-                if (params.data.labels && params.data.labels.length > 0) {
-                    params.data.labels.forEach(lbl => {
-                        html += `<span class="badge me-1 border" style="background-color: ${lbl.color}15; color: ${lbl.color}; border-color: ${lbl.color}40 !important; font-size: 0.7rem; padding: 2px 6px;">${lbl.name}</span>`;
-                    });
-                }
-                html += `<span>${params.value || '(No Subject)'}</span>`;
-                return html;
-            },
-            cellStyle: params => params.data && !params.data.is_read ? { fontWeight: 'bold' } : null
-        },
-        {
-            field: 'date_sent',
-            headerName: 'Date',
-            width: 100,
-            cellRenderer: params => {
-                if (!params.value) return '';
-                const date = new Date(params.value);
-                return date.toLocaleDateString(undefined, {month: 'short', day: 'numeric'});
-            },
-            cellStyle: params => params.data && !params.data.is_read ? { fontWeight: 'bold' } : null
-        }
-    ];
+// For dynamic SPA loader execution
+initEmailInboxApp();
 
-    emailGridOptions = {
-        columnDefs: columnDefs,
-        rowSelection: 'single',
-        rowHeight: 45,
-        headerHeight: 0, // Gmail style clean headerless
-        pagination: true,
-        paginationPageSize: 15,
-        onRowClicked: event => loadEmailThread(event.data),
-        onGridReady: event => {
-            gridApi = event.api;
-            loadEmails();
-        },
-        getRowStyle: params => {
-            if (params.data && !params.data.is_read) {
-                return { background: '#f8fafc' };
-            }
-            return null;
-        }
-    };
-
-    try {
-        new agGrid.Grid(gridDiv, emailGridOptions);
-    } catch (e) {
-        console.error('Failed to initialize AG Grid:', e);
-    }
+function initEmailInboxApp() {
+    setupDragAndDropFolderTargets();
+    setupQuickReplyDropzone();
+    loadEmailsList();
+    startLiveAutoSync();
 }
 
-function loadEmails() {
-    if (!gridApi) return;
-    gridApi.showLoadingOverlay();
-    
-    let url = `/api/email/list`;
-    const params = [];
-    if (activeFolder === 'LABEL' && activeLabel) {
-        params.push(`label=${encodeURIComponent(activeLabel)}`);
-    } else {
-        params.push(`folder=${activeFolder}`);
+/**
+ * Format ISO date timestamp to User's Local Timezone with relative & absolute options.
+ */
+function formatLocalTimezoneDate(isoString, type = 'relative') {
+    if (!isoString) return '';
+    const date = new Date(isoString);
+    if (isNaN(date.getTime())) return isoString;
+
+    const now = new Date();
+    const diffMs = now - date;
+    const diffSec = Math.floor(diffMs / 1000);
+    const diffMin = Math.floor(diffSec / 60);
+    const diffHours = Math.floor(diffMin / 60);
+    const diffDays = Math.floor(diffHours / 24);
+
+    if (type === 'relative') {
+        if (diffSec < 60) return 'Just now';
+        if (diffMin < 60) return `${diffMin}m ago`;
+        if (diffHours < 24 && date.getDate() === now.getDate()) {
+            return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }
+        if (diffDays === 1 || (diffHours < 48 && date.getDate() === now.getDate() - 1)) {
+            return 'Yesterday ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }
+        if (date.getFullYear() === now.getFullYear()) {
+            return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+        }
+        return date.toLocaleDateString([], { year: 'numeric', month: 'short', day: 'numeric' });
     }
-    
-    const searchVal = document.getElementById('email-search')?.value || '';
-    if (searchVal.trim()) {
-        params.push(`search=${encodeURIComponent(searchVal)}`);
-    }
-    
-    if (params.length > 0) {
-        url += '?' + params.join('&');
-    }
-    
-    fetch(url)
-        .then(r => r.json())
-        .then(data => {
-            if (gridApi) {
-                gridApi.setRowData(data.data);
-                gridApi.hideOverlay();
-            }
-        })
-        .catch(err => {
-            if (gridApi) {
-                gridApi.setRowData([]);
-                gridApi.hideOverlay();
-            }
+
+    if (type === 'full') {
+        const localFormatted = date.toLocaleString([], {
+            weekday: 'short',
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            timeZoneName: 'short'
         });
+        return `${localFormatted} (${userTimezone})`;
+    }
 }
 
-function switchFolder(element, folder) {
-    if (window.event) window.event.preventDefault();
-    document.querySelectorAll('#folder-list a').forEach(el => el.classList.remove('active'));
-    document.querySelectorAll('#label-list a').forEach(el => el.classList.remove('active'));
-    if (element) element.classList.add('active');
-    activeFolder = folder;
-    activeLabel = null;
-    document.getElementById('current-folder-title').textContent = folder.charAt(0) + folder.slice(1).toLowerCase();
-    
-    // Hide preview pane
-    const previewPane = document.getElementById('preview-pane');
-    previewPane.classList.add('d-none');
-    previewPane.classList.remove('d-flex');
-    
-    const placeholder = document.getElementById('preview-placeholder');
-    placeholder.classList.remove('d-none');
-    placeholder.classList.add('d-flex');
-    
-    loadEmails();
-}
+/**
+ * Fetch and render Emails Feed
+ */
+function loadEmailsList() {
+    const feedContainer = document.getElementById('email-list-feed');
+    if (!feedContainer) return;
 
-var searchTimeout = null;
-function onEmailSearch() {
-    clearTimeout(searchTimeout);
-    searchTimeout = setTimeout(() => {
-        loadEmails();
-    }, 450);
-}
-
-// Load message stream & attachments
-function loadEmailThread(mail) {
-    activeEmail = mail;
-    populateThreadLabelDropdown(mail);
-    
-    const placeholder = document.getElementById('preview-placeholder');
-    placeholder.classList.add('d-none');
-    placeholder.classList.remove('d-flex');
-    
-    const preview = document.getElementById('preview-pane');
-    preview.classList.remove('d-none');
-    preview.classList.add('d-flex');
-    
-    document.getElementById('preview-subject').textContent = mail.subject || '(No Subject)';
-    
-    // Configure Star icon
-    const starBtn = document.getElementById('preview-star-btn');
-    starBtn.innerHTML = mail.is_starred ? `<i class="bi bi-star-fill text-warning"></i>` : `<i class="bi bi-star"></i>`;
-
-    const container = document.getElementById('preview-messages-container');
-    container.innerHTML = `
-        <div class="text-center py-4">
-            <div class="spinner-border text-primary spinner-border-sm" role="status"></div>
+    feedContainer.innerHTML = `
+        <div class="text-center py-5 text-muted">
+            <div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
+            <span class="small">Fetching messages...</span>
         </div>
     `;
 
-    fetch('/api/email/thread/' + mail.thread_id)
+    let url = `/api/email/list?filter=${activeQuickFilter}`;
+    if (activeFolder === 'LABEL' && activeLabel) {
+        url += `&label=${encodeURIComponent(activeLabel)}`;
+    } else {
+        url += `&folder=${activeFolder}`;
+    }
+
+    const searchVal = document.getElementById('email-search')?.value || '';
+    if (searchVal.trim()) {
+        url += `&search=${encodeURIComponent(searchVal)}`;
+    }
+
+    const advFrom = document.getElementById('adv-search-from')?.value;
+    const advTo = document.getElementById('adv-search-to')?.value;
+    const advSub = document.getElementById('adv-search-subject')?.value;
+    const advDateFrom = document.getElementById('adv-search-date-from')?.value;
+    const advDateTo = document.getElementById('adv-search-date-to')?.value;
+
+    if (advDateFrom) url += `&date_from=${encodeURIComponent(advDateFrom)}`;
+    if (advDateTo) url += `&date_to=${encodeURIComponent(advDateTo)}`;
+
+    fetch(url)
         .then(r => r.json())
-        .then(data => {
-            container.innerHTML = '';
-            data.messages.forEach(msg => {
-                const div = document.createElement('div');
-                div.className = 'border rounded-3 p-3 mb-3 bg-white shadow-sm';
-                
-                let attachmentsHtml = '';
-                if (msg.attachments && msg.attachments.length > 0) {
-                    attachmentsHtml = '<div class="mt-3 border-top pt-2"><strong class="small text-muted d-block mb-2"><i class="bi bi-paperclip"></i> Attachments</strong><div class="d-flex flex-wrap gap-2">';
-                    msg.attachments.forEach(att => {
-                        attachmentsHtml += `
-                            <a href="/api/email/attachment/${att.id}" target="_blank" class="btn btn-xs btn-light border d-inline-flex align-items-center text-decoration-none py-1 px-2 rounded" style="font-size:0.75rem;">
-                                <i class="bi bi-file-earmark-arrow-down me-1"></i> ${att.filename} (${(att.file_size/1024).toFixed(1)} KB)
-                            </a>
-                        `;
-                    });
-                    attachmentsHtml += '</div></div>';
-                }
-
-                div.innerHTML = `
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                        <div>
-                            <strong style="font-size:0.85rem;">${msg.from_name}</strong>
-                            <span class="text-muted small">&lt;${msg.from_address}&gt;</span>
-                        </div>
-                        <small class="text-muted">${msg.date_formatted}</small>
-                    </div>
-                    <div class="email-body-content" style="font-size:0.85rem; line-height:1.5;">
-                        ${msg.body_html || nl2br(msg.body_text) || '(No Content)'}
-                    </div>
-                    ${attachmentsHtml}
-                `;
-                container.appendChild(div);
-            });
-
-            // Update unread status in mid-grid row data
-            mail.is_read = true;
-            if (gridApi) {
-                gridApi.applyTransaction({ update: [mail] });
-            }
-            
-            // Refresh counts in folder badge (approximate)
-            const badge = document.getElementById('count-inbox');
-            if (badge && activeFolder === 'INBOX') {
-                const curr = parseInt(badge.textContent) - 1;
-                badge.textContent = curr > 0 ? curr : 0;
-            }
+        .then(res => {
+            emailsList = res.data || [];
+            selectedEmailIds.clear();
+            updateBulkSelectionUI();
+            renderEmailCardsFeed();
+        })
+        .catch(err => {
+            console.error('Error loading emails:', err);
+            feedContainer.innerHTML = `
+                <div class="text-center py-5 text-muted">
+                    <i class="bi bi-exclamation-circle text-danger fs-3 d-block mb-2"></i>
+                    <span class="small">Failed to load emails. Click Sync to try again.</span>
+                </div>
+            `;
         });
 }
 
-function nl2br(str) {
-    return (str || '').replace(/([^>\r\n]?)(\r\n|\n\r|\r|\n)/g, '$1<br>$2');
-}
+/**
+ * Render Email Cards List
+ */
+function renderEmailCardsFeed() {
+    const container = document.getElementById('email-list-feed');
+    if (!container) return;
 
-function toggleActiveStar() {
-    if (!activeEmail) return;
-
-    fetch('/api/email/toggle-star/' + activeEmail.id, {
-        method: 'POST',
-        headers: {
-            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-        }
-    })
-    .then(r => r.json())
-    .then(data => {
-        activeEmail.is_starred = data.is_starred;
-        const starBtn = document.getElementById('preview-star-btn');
-        starBtn.innerHTML = data.is_starred ? `<i class="bi bi-star-fill text-warning"></i>` : `<i class="bi bi-star"></i>`;
-        showToast('success', data.is_starred ? 'Conversation starred' : 'Conversation unstarred');
-    });
-}
-
-function moveActiveEmail(folder) {
-    if (!activeEmail) return;
-
-    fetch('/api/email/move-folder/' + activeEmail.id, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-        },
-        body: JSON.stringify({ folder: folder })
-    })
-    .then(r => r.json())
-    .then(data => {
-        if (data.success) {
-            showToast('success', 'Conversation moved to ' + folder.toLowerCase());
-            
-            // Hide preview pane
-            const previewPane = document.getElementById('preview-pane');
-            previewPane.classList.add('d-none');
-            previewPane.classList.remove('d-flex');
-            
-            const placeholder = document.getElementById('preview-placeholder');
-            placeholder.classList.remove('d-none');
-            placeholder.classList.add('d-flex');
-            
-            // Remove from grid list
-            if (gridApi) {
-                gridApi.applyTransaction({ remove: [activeEmail] });
-            }
-            activeEmail = null;
-        }
-    });
-}
-
-// Reply & Forward actions transition to compose view with context parameters
-function replyToActiveEmail() {
-    if (!activeEmail) return;
-    loadPage('/email/compose?reply_to=' + activeEmail.id);
-    setActiveMenuItem(document.querySelector('a[onclick*="compose"]'));
-}
-
-function forwardActiveEmail() {
-    if (!activeEmail) return;
-    loadPage('/email/compose?reply_to=' + activeEmail.id + '&forward=1');
-    setActiveMenuItem(document.querySelector('a[onclick*="compose"]'));
-}
-
-function refreshActiveAccountEmails(btn) {
-    if (!activeEmailAccountId) {
-        showToast('error', 'No active email account to sync.');
+    if (emailsList.length === 0) {
+        container.innerHTML = `
+            <div class="text-center py-5 text-muted px-3">
+                <i class="bi bi-inbox fs-2 text-secondary d-block mb-2"></i>
+                <h6 class="fw-bold mb-1">No Messages Found</h6>
+                <p class="small text-muted mb-0">This folder is currently empty.</p>
+            </div>
+        `;
         return;
     }
 
-    const icon = document.getElementById('sync-icon');
-    if (icon) {
-        icon.classList.add('spin');
-        if (!document.getElementById('sync-spin-style')) {
-            const style = document.createElement('style');
-            style.id = 'sync-spin-style';
-            style.innerHTML = `
-                @keyframes sync-spin {
-                    from { transform: rotate(0deg); }
-                    to { transform: rotate(360deg); }
-                }
-                .spin {
-                    animation: sync-spin 1s linear infinite;
-                    display: inline-block;
-                }
-            `;
-            document.head.appendChild(style);
-        }
-    }
+    let html = '';
+    emailsList.forEach(email => {
+        const isSelected = selectedEmailIds.has(email.id);
+        const isUnreadClass = email.is_read ? 'read' : 'unread';
+        const isSelectedClass = isSelected ? 'selected' : '';
+        const initial = getContactInitial(email.from_name || email.from_address);
+        const avatarBg = getAvatarBgColor(email.from_address);
+        const formattedDate = formatLocalTimezoneDate(email.date_sent_iso || email.date_sent, 'relative');
 
-    if (btn) btn.disabled = true;
+        let labelsHtml = '';
+        if (email.labels && email.labels.length > 0) {
+            email.labels.forEach(lbl => {
+                labelsHtml += `<span class="email-label-badge me-1" style="background-color: ${lbl.color}20; color: ${lbl.color}; border: 1px solid ${lbl.color}40;">${escapeHtml(lbl.name)}</span>`;
+            });
+        }
 
-    fetch('/api/email/sync/' + activeEmailAccountId, {
-        method: 'POST',
-        headers: {
-            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        let attachmentBadge = '';
+        if (email.has_attachments) {
+            const count = email.attachments ? email.attachments.length : 1;
+            attachmentBadge = `<span class="badge bg-light text-muted border ms-1" style="font-size:0.68rem;" title="${count} Attachment(s)"><i class="bi bi-paperclip me-1"></i>${count}</span>`;
         }
-    })
-    .then(r => r.json())
-    .then(data => {
-        if (data.success) {
-            showToast('success', data.message || 'Emails synced successfully.');
-            loadEmails();
-            // Refresh folder counts
-            fetch('/api/email/folder-counts')
-                .then(r => r.json())
-                .then(counts => {
-                    for (const folder in counts) {
-                        const badge = document.getElementById('count-' + folder.toLowerCase());
-                        if (badge) {
-                            badge.textContent = counts[folder];
-                        }
-                    }
-                });
-        } else {
-            showToast('error', data.message || 'Sync failed.');
-            
-            // Populate and show the sync logs modal
-            const errorMsgEl = document.getElementById('sync-error-message');
-            const logsContainer = document.getElementById('sync-logs-container');
-            const modalEl = document.getElementById('syncLogsModal');
-            
-            if (errorMsgEl) {
-                errorMsgEl.textContent = data.message || 'Failed to sync email account.';
-            }
-            if (logsContainer) {
-                if (data.logs && Array.isArray(data.logs) && data.logs.length > 0) {
-                    logsContainer.textContent = data.logs.join('\n');
-                } else {
-                    logsContainer.textContent = 'No session connection logs captured.';
-                }
-            }
-            if (modalEl) {
-                // Move to body to prevent truncation/z-index issues
-                document.body.appendChild(modalEl);
-                const modal = new bootstrap.Modal(modalEl);
-                modal.show();
-            }
-        }
-    })
-    .catch(err => {
-        showToast('error', 'Network error during sync.');
-    })
-    .finally(() => {
-        if (icon) icon.classList.remove('spin');
-        if (btn) btn.disabled = false;
+
+        html += `
+            <div class="email-card-item ${isUnreadClass} ${isSelectedClass}" data-email-id="${email.id}" draggable="true" ondragstart="window.onEmailCardDragStart(event, ${email.id})" onclick="window.onEmailCardClick(event, ${email.id})">
+                <div class="d-flex align-items-start gap-2">
+                    <div class="pt-1" onclick="event.stopPropagation();">
+                        <input type="checkbox" class="form-check-input row-select-checkbox" ${isSelected ? 'checked' : ''} onchange="window.toggleSelectEmailRow(${email.id}, this.checked)">
+                    </div>
+                    
+                    <div class="avatar-initial" style="background-color: ${avatarBg};">
+                        ${initial}
+                    </div>
+
+                    <div class="flex-grow-1 overflow-hidden">
+                        <div class="d-flex align-items-center justify-content-between mb-1">
+                            <div class="d-flex align-items-center text-truncate">
+                                ${!email.is_read ? '<span class="unread-indicator-dot" title="Unread"></span>' : ''}
+                                <span class="fw-bold text-dark text-truncate" style="font-size: 0.85rem;">${escapeHtml(email.from_name || email.from_address)}</span>
+                            </div>
+                            <span class="small text-muted ms-2 flex-shrink-0" style="font-size: 0.72rem;">${formattedDate}</span>
+                        </div>
+
+                        <div class="email-subject text-truncate mb-1" style="font-size: 0.82rem;">
+                            ${escapeHtml(email.subject || '(No Subject)')}
+                        </div>
+
+                        <div class="text-muted text-truncate mb-1" style="font-size: 0.76rem; line-height: 1.3;">
+                            ${escapeHtml(email.snippet || '')}
+                        </div>
+
+                        <div class="d-flex align-items-center justify-content-between mt-1">
+                            <div>${labelsHtml}${attachmentBadge}</div>
+                            <div onclick="event.stopPropagation();">
+                                <i class="bi ${email.is_starred ? 'bi-star-fill starred' : 'bi-star'} star-toggle-btn" onclick="window.toggleStarRow(event, ${email.id})"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
     });
+
+    container.innerHTML = html;
 }
 
-function openEmailSettingsModal() {
-    const modalEl = document.getElementById('emailSettingsModal');
-    if (!modalEl) return;
-    
-    // Move to body to prevent clipping/truncation by parent container styles
-    document.body.appendChild(modalEl);
-    
-    fetch('/api/email/settings')
-        .then(r => r.json())
-        .then(data => {
-            document.getElementById('settings-email').value = data.email || '';
-            document.getElementById('settings-display-name').value = data.display_name || '';
-            
-            const passInput = document.getElementById('settings-password');
-            if (passInput) {
-                passInput.value = data.password || '';
-            }
-            
-            const modal = new bootstrap.Modal(modalEl);
-            modal.show();
-        })
-        .catch(err => {
-            showToast('error', 'Failed to retrieve mail settings.');
-        });
-}
+/**
+ * Handle Card Click to Load Reader Pane
+ */
+function onEmailCardClick(event, emailId) {
+    const email = emailsList.find(e => e.id === emailId);
+    if (!email) return;
 
-function toggleSettingsPasswordVisibility() {
-    const passInput = document.getElementById('settings-password');
-    const icon = document.getElementById('settings-password-toggle-icon');
-    if (passInput && icon) {
-        if (passInput.type === 'password') {
-            passInput.type = 'text';
-            icon.classList.replace('bi-eye', 'bi-eye-slash');
-        } else {
-            passInput.type = 'password';
-            icon.classList.replace('bi-eye-slash', 'bi-eye');
+    activeEmail = email;
+    populateThreadLabelDropdown(email);
+
+    // Highlight row
+    document.querySelectorAll('.email-card-item').forEach(el => el.classList.remove('selected'));
+    const clickedCard = document.querySelector(`.email-card-item[data-email-id="${emailId}"]`);
+    if (clickedCard) clickedCard.classList.add('selected');
+
+    // Show reader pane
+    const placeholder = document.getElementById('preview-placeholder');
+    if (placeholder) {
+        placeholder.classList.add('d-none');
+        placeholder.classList.remove('d-flex');
+    }
+
+    const previewPane = document.getElementById('preview-pane');
+    if (previewPane) {
+        previewPane.classList.remove('d-none');
+        previewPane.classList.add('d-flex');
+    }
+
+    const subEl = document.getElementById('preview-subject');
+    if (subEl) subEl.textContent = email.subject || '(No Subject)';
+    
+    // Render labels in reader header
+    const labelsContainer = document.getElementById('preview-labels-container');
+    if (labelsContainer) {
+        labelsContainer.innerHTML = '';
+        if (email.labels && email.labels.length > 0) {
+            email.labels.forEach(lbl => {
+                labelsContainer.innerHTML += `<span class="email-label-badge" style="background-color: ${lbl.color}20; color: ${lbl.color}; border: 1px solid ${lbl.color}40;">${escapeHtml(lbl.name)}</span>`;
+            });
         }
     }
-}
 
-function saveEmailSettings(event) {
-    event.preventDefault();
-    
-    const saveBtn = document.getElementById('save-settings-btn');
-    if (saveBtn) saveBtn.disabled = true;
-    
-    const payload = {
-        email: document.getElementById('settings-email').value,
-        display_name: document.getElementById('settings-display-name').value
-    };
-    
-    const passInput = document.getElementById('settings-password');
-    if (passInput && passInput.value) {
-        payload.password = passInput.value;
+    // Configure Star button
+    const starBtn = document.getElementById('preview-star-btn');
+    if (starBtn) {
+        starBtn.innerHTML = email.is_starred ? `<i class="bi bi-star-fill text-warning"></i>` : `<i class="bi bi-star"></i>`;
     }
-    
-    fetch('/api/email/settings', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-        },
-        body: JSON.stringify(payload)
-    })
-    .then(r => r.json())
-    .then(data => {
-        if (data.success) {
-            showToast('success', 'Mail settings saved successfully.');
-            const modalEl = document.getElementById('emailSettingsModal');
-            const modal = bootstrap.Modal.getInstance(modalEl);
-            if (modal) modal.hide();
-            
-            // Reload page or email accounts
-            loadPage('/email/inbox');
-        } else {
-            showToast('error', data.error || 'Failed to save settings.');
-        }
-    })
-    .catch(err => {
-        showToast('error', 'Network error during save.');
-    })
-    .finally(() => {
-        if (saveBtn) saveBtn.disabled = false;
-    });
-}
 
-function loadLabelsSidebar() {
-    fetch('/api/email/labels')
+    const container = document.getElementById('preview-messages-container');
+    if (!container) return;
+
+    container.innerHTML = `
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary spinner-border-sm me-2" role="status"></div>
+            <span class="small text-muted">Loading email conversation...</span>
+        </div>
+    `;
+
+    fetch('/api/email/thread/' + email.thread_id)
         .then(r => r.json())
-        .then(labels => {
-            const list = document.getElementById('label-list');
-            if (!list) return;
-            list.innerHTML = '';
-            labels.forEach(lbl => {
-                const a = document.createElement('a');
-                a.href = '#';
-                a.className = 'list-group-item list-group-item-action border-0 rounded-2 py-2 d-flex justify-content-between align-items-center';
-                if (activeFolder === 'LABEL' && activeLabel === lbl.name) {
-                    a.classList.add('active');
+        .then(res => {
+            container.innerHTML = '';
+            (res.messages || []).forEach(msg => {
+                const msgCard = document.createElement('div');
+                msgCard.className = 'card border-0 shadow-sm mb-3 rounded-3 overflow-hidden';
+
+                const fullDateFormatted = formatLocalTimezoneDate(msg.date_sent, 'full');
+                const initial = getContactInitial(msg.from_name || msg.from_address);
+                const avatarBg = getAvatarBgColor(msg.from_address);
+
+                let attachmentsHtml = '';
+                if (msg.attachments && msg.attachments.length > 0) {
+                    attachmentsHtml = `
+                        <div class="mt-3 pt-3 border-top bg-light p-3 rounded-3">
+                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                <strong class="small text-dark"><i class="bi bi-paperclip me-1 text-primary"></i> ${msg.attachments.length} Attachment(s)</strong>
+                            </div>
+                            <div class="d-flex flex-wrap gap-2">
+                    `;
+                    msg.attachments.forEach(att => {
+                        const isImg = (att.mime_type || '').startsWith('image/');
+                        const isPdf = (att.mime_type || '').includes('pdf');
+                        const icon = isImg ? 'bi-image text-success' : (isPdf ? 'bi-file-pdf text-danger' : 'bi-file-earmark-text text-primary');
+                        
+                        attachmentsHtml += `
+                            <div class="border bg-white rounded p-2 d-flex align-items-center gap-2 shadow-sm" style="min-width: 180px;">
+                                <i class="bi ${icon} fs-4"></i>
+                                <div class="overflow-hidden flex-grow-1">
+                                    <div class="text-truncate small fw-bold text-dark" style="font-size: 0.78rem;">${escapeHtml(att.filename)}</div>
+                                    <div class="text-muted" style="font-size: 0.68rem;">${(att.file_size / 1024).toFixed(1)} KB</div>
+                                </div>
+                                <div class="d-flex gap-1">
+                                    <button type="button" class="btn btn-xs btn-light border" onclick="window.previewAttachmentInline(${att.id}, '${escapeHtml(att.filename)}', '${att.mime_type}')" title="Preview"><i class="bi bi-eye"></i></button>
+                                    <a href="/api/email/attachment/${att.id}" target="_blank" class="btn btn-xs btn-light border" title="Download"><i class="bi bi-download"></i></a>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    attachmentsHtml += `</div></div>`;
                 }
-                a.onclick = (e) => {
-                    e.preventDefault();
-                    switchLabel(a, lbl.name);
-                };
-                a.innerHTML = `
-                    <div class="d-flex justify-content-between align-items-center w-100">
-                        <span><i class="bi bi-tag-fill me-2" style="color: ${lbl.color};"></i> ${lbl.name}</span>
-                        <button class="btn btn-link p-0 text-muted label-delete-btn" onclick="deleteLabel(event, ${lbl.id})" style="visibility: hidden;">
-                            <i class="bi bi-x"></i>
-                        </button>
+
+                // Render body safely inside iframe
+                const iframeId = `email-iframe-${msg.id}`;
+                msgCard.innerHTML = `
+                    <div class="card-header bg-white border-bottom p-3">
+                        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="avatar-initial" style="background-color: ${avatarBg}; width: 32px; height: 32px; font-size: 0.75rem;">${initial}</div>
+                                <div>
+                                    <div class="fw-bold text-dark" style="font-size: 0.85rem;">${escapeHtml(msg.from_name || msg.from_address)}</div>
+                                    <div class="text-muted small" style="font-size: 0.74rem;">To: ${escapeHtml(msg.to_address)}</div>
+                                </div>
+                            </div>
+                            <div class="d-flex align-items-center gap-1">
+                                <button type="button" class="btn btn-xs btn-light border text-dark" onclick="window.replySpecificMessage(${msg.id}, 'reply')" title="Reply to sender"><i class="bi bi-reply-fill me-1 text-primary"></i>Reply</button>
+                                <button type="button" class="btn btn-xs btn-light border text-dark" onclick="window.replySpecificMessage(${msg.id}, 'reply_all')" title="Reply All"><i class="bi bi-reply-all-fill me-1 text-primary"></i>Reply All</button>
+                                <button type="button" class="btn btn-xs btn-light border text-dark" onclick="window.replySpecificMessage(${msg.id}, 'forward')" title="Forward Message"><i class="bi bi-forward-fill me-1 text-primary"></i>Forward</button>
+                                <span class="badge bg-light text-dark border px-2 py-1 ms-1" style="font-size: 0.7rem;" title="Converted to your local timezone"><i class="bi bi-clock me-1 text-primary"></i>${fullDateFormatted}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body p-3">
+                        <iframe id="${iframeId}" class="email-iframe-container" srcdoc="${escapeAttr(renderSafeEmailBodyHtml(msg.body_html || nl2br(msg.body_text)))}" onload="window.resizeEmailIframe(this)"></iframe>
+                        ${attachmentsHtml}
                     </div>
                 `;
-                list.appendChild(a);
+                container.appendChild(msgCard);
             });
+
+            // Mark email as read in local array & server
+            if (!email.is_read) {
+                email.is_read = true;
+                if (clickedCard) {
+                    clickedCard.classList.remove('unread');
+                    clickedCard.classList.add('read');
+                    const dot = clickedCard.querySelector('.unread-indicator-dot');
+                    if (dot) dot.remove();
+                }
+                updateFolderCountBadge('INBOX', -1);
+            }
         });
+}
+
+function renderSafeEmailBodyHtml(htmlOrText) {
+    if (!htmlOrText) return '<div style="font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:14px; color:#64748b;">(No Content)</div>';
+    return `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="utf-8">
+            <style>
+                body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 14px; line-height: 1.6; color: #1e293b; margin: 0; padding: 10px; }
+                img { max-width: 100% !important; height: auto !important; }
+                table { max-width: 100% !important; }
+                a { color: #2563eb; }
+            </style>
+        </head>
+        <body>${htmlOrText}</body>
+        </html>
+    `;
+}
+
+function resizeEmailIframe(iframe) {
+    try {
+        if (iframe.contentWindow && iframe.contentWindow.document.body) {
+            iframe.style.height = (iframe.contentWindow.document.body.scrollHeight + 30) + 'px';
+        }
+    } catch (e) {}
+}
+
+/**
+ * Drag & Drop Logic for Emails Feed to Sidebar Folders
+ */
+function onEmailCardDragStart(event, emailId) {
+    event.dataTransfer.setData('text/plain', emailId.toString());
+    event.dataTransfer.effectAllowed = 'move';
+}
+
+function setupDragAndDropFolderTargets() {
+    const folderItems = document.querySelectorAll('.email-folder-item');
+    folderItems.forEach(item => {
+        item.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            this.classList.add('drag-over-folder');
+        });
+
+        item.addEventListener('dragleave', function(e) {
+            this.classList.remove('drag-over-folder');
+        });
+
+        item.addEventListener('drop', function(e) {
+            e.preventDefault();
+            this.classList.remove('drag-over-folder');
+            
+            const draggedEmailId = e.dataTransfer.getData('text/plain');
+            const targetFolder = this.getAttribute('data-folder');
+            const targetLabelName = this.getAttribute('data-label-name');
+
+            let idsToMove = [];
+            if (selectedEmailIds.has(parseInt(draggedEmailId))) {
+                idsToMove = Array.from(selectedEmailIds);
+            } else if (draggedEmailId) {
+                idsToMove = [parseInt(draggedEmailId)];
+            }
+
+            if (idsToMove.length === 0) return;
+
+            if (targetFolder) {
+                applyBulkActionOnIds(idsToMove, targetFolder.toLowerCase());
+            } else if (targetLabelName) {
+                const labelId = this.getAttribute('data-label-id');
+                applyBulkActionOnIds(idsToMove, 'apply_label', labelId);
+            }
+        });
+    });
+}
+
+/**
+ * Quick Filter Pills Toggle
+ */
+function setQuickFilter(filterType, element) {
+    document.querySelectorAll('#quick-filters-bar .filter-pill').forEach(el => el.classList.remove('active'));
+    element.classList.add('active');
+    activeQuickFilter = filterType;
+    loadEmailsList();
+}
+
+/**
+ * Folder Switcher
+ */
+function switchFolder(element, folder) {
+    if (window.event) window.event.preventDefault();
+    document.querySelectorAll('#folder-list .email-folder-item').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('#label-list .email-folder-item').forEach(el => el.classList.remove('active'));
+    if (element) element.classList.add('active');
+
+    activeFolder = folder;
+    activeLabel = null;
+    const titleEl = document.getElementById('current-folder-title');
+    if (titleEl) titleEl.textContent = folder.charAt(0) + folder.slice(1).toLowerCase();
+
+    // Reset preview
+    const previewPane = document.getElementById('preview-pane');
+    if (previewPane) {
+        previewPane.classList.add('d-none');
+        previewPane.classList.remove('d-flex');
+    }
+
+    const placeholder = document.getElementById('preview-placeholder');
+    if (placeholder) {
+        placeholder.classList.remove('d-none');
+        placeholder.classList.add('d-flex');
+    }
+
+    loadEmailsList();
 }
 
 function switchLabel(element, labelName) {
     if (window.event) window.event.preventDefault();
-    document.querySelectorAll('#folder-list a').forEach(el => el.classList.remove('active'));
-    document.querySelectorAll('#label-list a').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('#folder-list .email-folder-item').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('#label-list .email-folder-item').forEach(el => el.classList.remove('active'));
     if (element) element.classList.add('active');
+
     activeFolder = 'LABEL';
     activeLabel = labelName;
-    document.getElementById('current-folder-title').textContent = 'Label: ' + labelName;
-    
-    // Hide preview pane
-    const previewPane = document.getElementById('preview-pane');
-    previewPane.classList.add('d-none');
-    previewPane.classList.remove('d-flex');
-    
-    const placeholder = document.getElementById('preview-placeholder');
-    placeholder.classList.remove('d-none');
-    placeholder.classList.add('d-flex');
-    
-    loadEmails();
+    const titleEl = document.getElementById('current-folder-title');
+    if (titleEl) titleEl.textContent = 'Label: ' + labelName;
+
+    loadEmailsList();
 }
 
+/**
+ * Multi-Select Row Handlers
+ */
+function toggleSelectEmailRow(emailId, checked) {
+    if (checked) {
+        selectedEmailIds.add(emailId);
+    } else {
+        selectedEmailIds.delete(emailId);
+    }
+    updateBulkSelectionUI();
+    renderEmailCardsFeed();
+}
+
+function toggleSelectAllRows(checked) {
+    if (checked) {
+        emailsList.forEach(e => selectedEmailIds.add(e.id));
+    } else {
+        selectedEmailIds.clear();
+    }
+    updateBulkSelectionUI();
+    renderEmailCardsFeed();
+}
+
+function selectRowsByCondition(condition) {
+    selectedEmailIds.clear();
+    if (condition === 'all') {
+        emailsList.forEach(e => selectedEmailIds.add(e.id));
+    } else if (condition === 'unread') {
+        emailsList.filter(e => !e.is_read).forEach(e => selectedEmailIds.add(e.id));
+    } else if (condition === 'starred') {
+        emailsList.filter(e => e.is_starred).forEach(e => selectedEmailIds.add(e.id));
+    }
+    updateBulkSelectionUI();
+    renderEmailCardsFeed();
+}
+
+function updateBulkSelectionUI() {
+    const count = selectedEmailIds.size;
+    const label = document.getElementById('selected-count-label');
+    const group = document.getElementById('bulk-actions-group');
+    const selectAllCheckbox = document.getElementById('select-all-checkbox');
+
+    if (label) label.textContent = `${count} selected`;
+
+    if (count > 0) {
+        group?.classList.remove('d-none');
+        group?.classList.add('d-flex');
+    } else {
+        group?.classList.add('d-none');
+        group?.classList.remove('d-flex');
+    }
+
+    if (selectAllCheckbox) {
+        selectAllCheckbox.checked = count > 0 && count === emailsList.length;
+    }
+}
+
+/**
+ * Bulk Action API Dispatcher
+ */
+function applyBulkAction(action, extraParam) {
+    const ids = Array.from(selectedEmailIds);
+    if (ids.length === 0) return;
+    applyBulkActionOnIds(ids, action, extraParam);
+}
+
+function applyBulkActionOnIds(ids, action, extraParam) {
+    fetch('/api/email/bulk-action', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+        },
+        body: JSON.stringify({
+            ids: ids,
+            action: action,
+            label_id: extraParam
+        })
+    })
+    .then(r => r.json())
+    .then(res => {
+        if (res.success) {
+            selectedEmailIds.clear();
+            loadEmailsList();
+            refreshFolderCounts();
+            if (typeof showToast === 'function') showToast('success', 'Bulk action completed.');
+        }
+    });
+}
+
+function toggleStarRow(event, emailId) {
+    if (event) event.stopPropagation();
+    const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+    fetch(`/api/email/toggle-star/${emailId}`, {
+        method: 'POST',
+        headers: {
+            'X-CSRF-TOKEN': token,
+            'Accept': 'application/json'
+        }
+    })
+        .then(r => r.json())
+        .then(res => {
+            if (res.success) {
+                const email = emailsList.find(e => e.id === emailId);
+                if (email) email.is_starred = res.is_starred;
+                renderEmailCardsFeed();
+                refreshFolderCounts();
+            }
+        });
+}
+
+function toggleActiveStar() {
+    if (!activeEmail) return;
+    toggleStarRow(window.event || {}, activeEmail.id);
+}
+
+function moveActiveEmail(folder) {
+    if (!activeEmail) return;
+    applyBulkActionOnIds([activeEmail.id], folder.toLowerCase());
+}
+
+/**
+ * Quick Reply & Auto Save Draft
+ */
+function formatQuickReplyText(cmd, val = null) {
+    document.execCommand(cmd, false, val);
+}
+
+function triggerQuickReplyAutoSave() {
+    clearTimeout(quickReplyAutoSaveTimer);
+    const status = document.getElementById('quick-reply-save-status');
+    if (status) status.textContent = 'Saving draft...';
+
+    quickReplyAutoSaveTimer = setTimeout(() => {
+        saveQuickReplyDraft();
+    }, 3000);
+}
+
+function saveQuickReplyDraft() {
+    if (!activeEmail) return;
+    const content = document.getElementById('quick-reply-editor')?.innerHTML || '';
+    if (!content.trim()) return;
+
+    fetch('/api/email/save-draft', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+        },
+        body: JSON.stringify({
+            to: activeEmail.from_address,
+            subject: 'Re: ' + (activeEmail.subject || ''),
+            body_html: content
+        })
+    })
+    .then(r => r.json())
+    .then(res => {
+        const status = document.getElementById('quick-reply-save-status');
+        if (status) status.textContent = 'Draft auto-saved';
+        refreshFolderCounts();
+    });
+}
+
+function setupQuickReplyDropzone() {
+    const zone = document.getElementById('quick-reply-dropzone');
+    if (!zone) return;
+
+    zone.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        this.classList.add('drag-over-dropzone');
+    });
+    zone.addEventListener('dragleave', function(e) {
+        this.classList.remove('drag-over-dropzone');
+    });
+    zone.addEventListener('drop', function(e) {
+        e.preventDefault();
+        this.classList.remove('drag-over-dropzone');
+        if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+            handleQuickReplyFiles(e.dataTransfer.files);
+        }
+    });
+}
+
+function handleQuickReplyFileSelect(event) {
+    if (event.target.files) {
+        handleQuickReplyFiles(event.target.files);
+    }
+}
+
+function handleQuickReplyFiles(files) {
+    const preview = document.getElementById('quick-reply-attachments-preview');
+    for (let i = 0; i < files.length; i++) {
+        const f = files[i];
+        quickReplyFiles.push(f);
+        if (preview) {
+            preview.innerHTML += `
+                <span class="badge bg-light text-dark border p-1" style="font-size:0.75rem;">
+                    <i class="bi bi-paperclip me-1"></i> ${escapeHtml(f.name)} (${(f.size/1024).toFixed(1)} KB)
+                </span>
+            `;
+        }
+    }
+}
+
+function sendQuickReply() {
+    if (!activeEmail) return;
+    const content = document.getElementById('quick-reply-editor')?.innerHTML || '';
+    if (!content.trim()) {
+        alert('Please enter a message to send.');
+        return;
+    }
+
+    const btn = document.getElementById('quick-reply-send-btn');
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `<div class="spinner-border spinner-border-sm me-1"></div> Sending...`;
+    }
+
+    const formData = new FormData();
+    formData.append('to', activeEmail.from_address);
+    formData.append('subject', 'Re: ' + (activeEmail.subject || ''));
+    formData.append('body_html', content);
+    formData.append('in_reply_to', activeEmail.message_id || '');
+    formData.append('thread_id', activeEmail.thread_id || '');
+
+    quickReplyFiles.forEach(file => {
+        formData.append('attachments[]', file);
+    });
+
+    fetch('/api/email/send', {
+        method: 'POST',
+        headers: {
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+        },
+        body: formData
+    })
+    .then(r => r.json())
+    .then(res => {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = `<i class="bi bi-send-fill me-1"></i> Send Reply`;
+        }
+        if (res.success) {
+            document.getElementById('quick-reply-editor').innerHTML = '';
+            quickReplyFiles = [];
+            document.getElementById('quick-reply-attachments-preview').innerHTML = '';
+            document.getElementById('quick-reply-save-status').textContent = '';
+            onEmailCardClick({}, activeEmail.id);
+            refreshFolderCounts();
+            if (typeof showToast === 'function') showToast('success', 'Reply transmitted.');
+        } else {
+            alert('Failed to send email: ' + (res.error || 'Unknown error'));
+        }
+    });
+}
+
+function popoutToFullCompose(mode = 'reply') {
+    if (!activeEmail) return;
+    if (typeof loadEmailApp === 'function') {
+        loadEmailApp(null, 'compose', {
+            reply_to: activeEmail.id,
+            mode: mode
+        });
+    }
+}
+
+function replySpecificMessage(msgId, mode = 'reply') {
+    if (typeof loadEmailApp === 'function') {
+        loadEmailApp(null, 'compose', {
+            reply_to: msgId,
+            mode: mode
+        });
+    }
+}
+
+function replyCurrentThread(mode = 'reply') {
+    if (!activeEmail) return;
+    replySpecificMessage(activeEmail.id, mode);
+}
+
+/**
+ * Inline Attachment Previewer Modal
+ */
+function previewAttachmentInline(attId, filename, mimeType) {
+    const modalEl = document.getElementById('attachmentPreviewModal');
+    const title = document.getElementById('attachment-preview-filename');
+    const downloadBtn = document.getElementById('attachment-download-btn');
+    const body = document.getElementById('attachment-preview-body');
+
+    if (!modalEl) return;
+
+    if (title) title.textContent = filename;
+    if (downloadBtn) downloadBtn.href = `/api/email/attachment/${attId}`;
+
+    const url = `/api/email/attachment/${attId}?inline=1`;
+    if (mimeType.startsWith('image/')) {
+        body.innerHTML = `<img src="${url}" class="img-fluid" style="max-height: 75vh; object-fit: contain;">`;
+    } else if (mimeType.includes('pdf')) {
+        body.innerHTML = `<iframe src="${url}" style="width: 100%; height: 75vh; border: none;"></iframe>`;
+    } else {
+        body.innerHTML = `
+            <div class="text-center p-5 text-light">
+                <i class="bi bi-file-earmark-arrow-down fs-1 d-block mb-3 text-primary"></i>
+                <h6>Preview not available inline for this file type (${mimeType}).</h6>
+                <a href="${url}" class="btn btn-primary btn-sm mt-2" target="_blank">Download File</a>
+            </div>
+        `;
+    }
+
+    document.body.appendChild(modalEl);
+    const modal = new bootstrap.Modal(modalEl);
+    modal.show();
+}
+
+/**
+ * Omnibox & Advanced Search Modal
+ */
+var searchTimeout = null;
+function onEmailSearch() {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => {
+        loadEmailsList();
+    }, 400);
+}
+
+function openAdvancedSearchModal() {
+    const modalEl = document.getElementById('advancedSearchModal');
+    if (!modalEl) return;
+    document.body.appendChild(modalEl);
+    const modal = new bootstrap.Modal(modalEl);
+    modal.show();
+}
+
+function executeAdvancedSearch(event) {
+    event.preventDefault();
+    const modalEl = document.getElementById('advancedSearchModal');
+    const modal = bootstrap.Modal.getInstance(modalEl);
+    if (modal) modal.hide();
+    loadEmailsList();
+}
+
+function resetAdvancedSearch() {
+    const fromEl = document.getElementById('adv-search-from');
+    const toEl = document.getElementById('adv-search-to');
+    const subEl = document.getElementById('adv-search-subject');
+    const dateFromEl = document.getElementById('adv-search-date-from');
+    const dateToEl = document.getElementById('adv-search-date-to');
+    const attEl = document.getElementById('adv-search-has-attachment');
+
+    if (fromEl) fromEl.value = '';
+    if (toEl) toEl.value = '';
+    if (subEl) subEl.value = '';
+    if (dateFromEl) dateFromEl.value = '';
+    if (dateToEl) dateToEl.value = '';
+    if (attEl) attEl.checked = false;
+
+    loadEmailsList();
+}
+
+/**
+ * Mail Settings Modal & Accounts
+ */
+function openEmailSettingsModal() {
+    const modalEl = document.getElementById('emailSettingsModal');
+    if (!modalEl) return;
+    document.body.appendChild(modalEl);
+
+    fetch('/api/email/settings')
+        .then(r => r.json())
+        .then(data => {
+            const emailInput = document.getElementById('settings-email');
+            const nameInput = document.getElementById('settings-display-name');
+            if (emailInput) emailInput.value = data.email || '';
+            if (nameInput) nameInput.value = data.display_name || '';
+
+            const modal = new bootstrap.Modal(modalEl);
+            modal.show();
+        });
+}
+
+function saveEmailSettings(event) {
+    event.preventDefault();
+    const email = document.getElementById('settings-email')?.value;
+    const name = document.getElementById('settings-display-name')?.value;
+
+    fetch('/api/email/settings', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+        },
+        body: JSON.stringify({ email: email, display_name: name })
+    })
+    .then(r => r.json())
+    .then(res => {
+        if (res.success) {
+            const modalEl = document.getElementById('emailSettingsModal');
+            const modal = bootstrap.Modal.getInstance(modalEl);
+            if (modal) modal.hide();
+            if (typeof showToast === 'function') showToast('success', 'Email account settings saved.');
+            if (typeof loadPage === 'function') loadPage('/erp/email-inbox');
+        } else {
+            alert('Failed to save settings: ' + (res.error || 'Unknown error'));
+        }
+    });
+}
+
+function switchEmailAccountLocal(event, accId, email) {
+    if (event) event.preventDefault();
+
+    fetch('/api/email/switch-account', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+        },
+        body: JSON.stringify({ email_account_id: accId })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            if (typeof loadPage === 'function') loadPage('/erp/email-inbox');
+            if (typeof showToast === 'function') showToast('success', 'Switched to account: ' + email);
+        } else {
+            alert('Failed to switch account.');
+        }
+    });
+}
+
+/**
+ * Labels Management Modals
+ */
 function openCreateLabelModal() {
     const modalEl = document.getElementById('createLabelModal');
     if (!modalEl) return;
-    
-    // Move to body to prevent clipping/truncation by parent container styles
     document.body.appendChild(modalEl);
-    
+
     document.getElementById('label-name-input').value = '';
     document.getElementById('label-color-input').value = '#3b82f6';
     const modal = new bootstrap.Modal(modalEl);
@@ -549,231 +928,281 @@ function openCreateLabelModal() {
 
 function saveNewLabel(event) {
     event.preventDefault();
-    const saveBtn = document.getElementById('save-label-btn');
-    if (saveBtn) saveBtn.disabled = true;
-
-    const payload = {
-        name: document.getElementById('label-name-input').value,
-        color: document.getElementById('label-color-input').value
-    };
+    const name = document.getElementById('label-name-input')?.value;
+    const color = document.getElementById('label-color-input')?.value;
 
     fetch('/api/email/labels', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
-            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
         },
-        body: JSON.stringify(payload)
+        body: JSON.stringify({ name: name, color: color })
     })
     .then(r => r.json())
     .then(data => {
         if (data.success) {
-            showToast('success', 'Label created.');
             const modalEl = document.getElementById('createLabelModal');
             const modal = bootstrap.Modal.getInstance(modalEl);
             if (modal) modal.hide();
-            loadLabelsSidebar();
+            if (typeof showToast === 'function') showToast('success', 'Label created.');
+            if (typeof loadPage === 'function') loadPage('/erp/email-inbox');
         } else {
-            showToast('error', data.error || 'Failed to create label.');
+            alert('Failed to create label: ' + (data.error || ''));
         }
-    })
-    .catch(err => showToast('error', 'Network error.'))
-    .finally(() => {
-        if (saveBtn) saveBtn.disabled = false;
     });
 }
 
 function deleteLabel(event, id) {
-    event.stopPropagation();
-    event.preventDefault();
-    if (!confirm('Are you sure you want to delete this label?')) return;
+    if (event) {
+        event.stopPropagation();
+        event.preventDefault();
+    }
+    if (!confirm('Delete this label?')) return;
 
     fetch('/api/email/label/' + id, {
         method: 'DELETE',
-        headers: {
-            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-        }
-    })
-    .then(r => r.json())
-    .then(data => {
-        if (data.success) {
-            showToast('success', 'Label deleted.');
-            if (activeFolder === 'LABEL') {
-                switchFolder(document.querySelector('#folder-list a'), 'INBOX');
-            } else {
-                loadLabelsSidebar();
-            }
-        } else {
-            showToast('error', data.error || 'Failed to delete label.');
-        }
-    })
-    .catch(err => showToast('error', 'Network error.'));
-}
-
-function populateThreadLabelDropdown(mail) {
-    const dropdownMenu = document.getElementById('thread-label-dropdown-menu');
-    if (!dropdownMenu) return;
-
-    fetch('/api/email/labels')
-        .then(r => r.json())
-        .then(labels => {
-            dropdownMenu.innerHTML = '';
-            if (labels.length === 0) {
-                dropdownMenu.innerHTML = '<li class="px-3 py-1 text-muted small">No labels created yet.</li>';
-                return;
-            }
-
-            const activeLabelIds = (mail.labels || []).map(l => l.id);
-
-            labels.forEach(lbl => {
-                const isChecked = activeLabelIds.includes(lbl.id);
-                const li = document.createElement('li');
-                li.className = 'px-3 py-1';
-                li.innerHTML = `
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" value="${lbl.id}" id="chk-label-${lbl.id}" ${isChecked ? 'checked' : ''} onchange="toggleLabelOnActiveEmail(this, ${lbl.id})">
-                        <label class="form-check-label small" for="chk-label-${lbl.id}">
-                            <i class="bi bi-tag-fill me-1" style="color: ${lbl.color};"></i> ${lbl.name}
-                        </label>
-                    </div>
-                `;
-                dropdownMenu.appendChild(li);
-            });
-        });
-}
-
-function toggleLabelOnActiveEmail(checkbox, labelId) {
-    if (!activeEmail) return;
-
-    const apply = checkbox.checked;
-    fetch('/api/email/apply-label', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-        },
-        body: JSON.stringify({
-            email_id: activeEmail.id,
-            label_id: labelId,
-            apply: apply
-        })
-    })
-    .then(r => r.json())
-    .then(data => {
-        if (data.success) {
-            showToast('success', apply ? 'Label applied' : 'Label removed');
-            if (!activeEmail.labels) activeEmail.labels = [];
-            if (apply) {
-                fetch('/api/email/labels')
-                    .then(r => r.json())
-                    .then(labels => {
-                        const lbl = labels.find(l => l.id === labelId);
-                        if (lbl) {
-                            activeEmail.labels.push(lbl);
-                            if (gridApi) {
-                                gridApi.applyTransaction({ update: [activeEmail] });
-                            }
-                        }
-                    });
-            } else {
-                activeEmail.labels = activeEmail.labels.filter(l => l.id !== labelId);
-                if (gridApi) {
-                    gridApi.applyTransaction({ update: [activeEmail] });
-                }
-            }
-        } else {
-            checkbox.checked = !apply;
-            showToast('error', data.error || 'Failed to update label.');
-        }
-    })
-    .catch(err => {
-        checkbox.checked = !apply;
-        showToast('error', 'Network error.');
-    });
-}
-
-// Bind functions to window object for inline HTML event handlers (e.g. onclick) when executed inside an IIFE
-window.initEmailGrid = initEmailGrid;
-window.loadEmails = loadEmails;
-window.switchFolder = switchFolder;
-window.onEmailSearch = onEmailSearch;
-window.loadEmailThread = loadEmailThread;
-window.toggleActiveStar = toggleActiveStar;
-window.moveActiveEmail = moveActiveEmail;
-window.replyToActiveEmail = replyToActiveEmail;
-window.forwardActiveEmail = forwardActiveEmail;
-window.refreshActiveAccountEmails = refreshActiveAccountEmails;
-window.openEmailSettingsModal = openEmailSettingsModal;
-window.toggleSettingsPasswordVisibility = toggleSettingsPasswordVisibility;
-window.saveEmailSettings = saveEmailSettings;
-window.loadLabelsSidebar = loadLabelsSidebar;
-window.switchLabel = switchLabel;
-window.openCreateLabelModal = openCreateLabelModal;
-window.saveNewLabel = saveNewLabel;
-window.deleteLabel = deleteLabel;
-window.populateThreadLabelDropdown = populateThreadLabelDropdown;
-window.toggleLabelOnActiveEmail = toggleLabelOnActiveEmail;
-
-function switchEmailAccountLocal(event, accId, email) {
-    if (event) event.preventDefault();
-    
-    fetch('/api/email/switch-account', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-        },
-        body: JSON.stringify({ email_account_id: accId })
-    })
-    .then(r => r.json())
-    .then(data => {
-        if (data.success) {
-            activeEmailAccountId = accId;
-            const topbarSwitcher = document.getElementById('email-account-switcher');
-            if (topbarSwitcher) {
-                topbarSwitcher.value = accId;
-            }
-            loadPage('/erp/email-inbox');
-            showToast('success', 'Switched to account: ' + email);
-        } else {
-            showToast('error', 'Failed to switch account.');
-        }
-    })
-    .catch(err => showToast('error', 'Network error.'));
-}
-window.switchEmailAccountLocal = switchEmailAccountLocal;
-
-function triggerLiveAutoSync() {
-    if (!activeEmailAccountId) return;
-
-    fetch('/api/email/auto-sync', {
-        method: 'POST',
         headers: {
             'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
         }
     })
     .then(r => r.json())
     .then(data => {
-        if (data && data.success) {
-            if (data.folder_counts) {
-                for (const folder in data.folder_counts) {
-                    const badge = document.getElementById('count-' + folder.toLowerCase());
-                    if (badge) {
-                        badge.textContent = data.folder_counts[folder];
-                    }
-                }
-            }
-            if (data.new_emails_count && data.new_emails_count > 0) {
-                showToast('success', `⚡ ${data.new_emails_count} new email(s) dropped into your inbox!`);
-                loadEmails();
-            }
+        if (data.success) {
+            if (typeof showToast === 'function') showToast('success', 'Label deleted.');
+            if (typeof loadPage === 'function') loadPage('/erp/email-inbox');
+        } else {
+            alert('Failed to delete label.');
         }
-    })
-    .catch(err => {
-        // Silent catch for background polling
     });
 }
-window.triggerLiveAutoSync = triggerLiveAutoSync;
 
-// Start Thunderbird-style live auto-sync polling every 12 seconds
-window.emailAutoSyncInterval = setInterval(triggerLiveAutoSync, 12000);
+function printActiveEmailThread() {
+    const container = document.getElementById('preview-messages-container');
+    if (!container) return;
+    const win = window.open('', '_blank');
+    win.document.write(`
+        <html>
+        <head><title>Print Email Thread - ${escapeHtml(activeEmail ? activeEmail.subject : '')}</title></head>
+        <body>${container.innerHTML}</body>
+        </html>
+    `);
+    win.document.close();
+    win.print();
+}
+
+/**
+ * Unread Badges Refresh
+ */
+function refreshFolderCounts() {
+    fetch('/api/email/folder-counts')
+        .then(r => r.json())
+        .then(counts => {
+            for (let k in counts) {
+                const el = document.getElementById('count-' + k.toLowerCase());
+                if (el) el.textContent = counts[k];
+            }
+        });
+}
+
+function updateFolderCountBadge(folder, delta) {
+    const el = document.getElementById('count-' + folder.toLowerCase());
+    if (el) {
+        const curr = parseInt(el.textContent || '0') + delta;
+        el.textContent = curr > 0 ? curr : 0;
+    }
+}
+
+/**
+ * Live Auto Sync (Thunderbird Style Incoming Drop Controlled by DB Column)
+ */
+function toggleLiveSync(event) {
+    if (event) event.stopPropagation();
+    
+    fetch('/api/email/toggle-live-sync', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+        }
+    })
+    .then(r => r.json())
+    .then(res => {
+        if (res.success) {
+            const indicator = document.getElementById('live-sync-indicator');
+            const textEl = document.getElementById('live-sync-text');
+            const isEnabled = res.is_live_sync_enabled;
+
+            if (textEl) textEl.textContent = 'Live Sync: ' + (isEnabled ? 'ON' : 'OFF');
+
+            if (indicator) {
+                if (isEnabled) {
+                    indicator.className = 'badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2 py-1 ms-1 d-none d-md-inline-flex align-items-center';
+                } else {
+                    indicator.className = 'badge bg-secondary-subtle text-secondary border border-secondary-subtle rounded-pill px-2 py-1 ms-1 d-none d-md-inline-flex align-items-center';
+                }
+            }
+
+            if (typeof showToast === 'function') {
+                showToast('info', res.message);
+            }
+        }
+    });
+}
+
+function startLiveAutoSync() {
+    window.emailAutoSyncInterval = setInterval(() => {
+        fetch('/api/email/auto-sync')
+            .then(r => r.json())
+            .then(res => {
+                const indicator = document.getElementById('live-sync-indicator');
+                const textEl = document.getElementById('live-sync-text');
+                const isEnabled = res.is_live_sync_enabled ?? true;
+
+                if (textEl) textEl.textContent = 'Live Sync: ' + (isEnabled ? 'ON' : 'OFF');
+
+                if (indicator) {
+                    if (isEnabled) {
+                        indicator.className = 'badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2 py-1 ms-1 d-none d-md-inline-flex align-items-center';
+                    } else {
+                        indicator.className = 'badge bg-secondary-subtle text-secondary border border-secondary-subtle rounded-pill px-2 py-1 ms-1 d-none d-md-inline-flex align-items-center';
+                    }
+                }
+
+                if (isEnabled && res.new_emails_count && res.new_emails_count > 0) {
+                    loadEmailsList();
+                    refreshFolderCounts();
+                }
+            })
+            .catch(() => {});
+    }, 15000);
+}
+
+function refreshActiveAccountEmails(btn) {
+    const icon = document.getElementById('sync-icon');
+    if (icon) icon.classList.add('spin-animation');
+
+    const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+
+    fetch('/api/email/sync/' + activeEmailAccountId, {
+        method: 'POST',
+        headers: {
+            'X-CSRF-TOKEN': token,
+            'Accept': 'application/json'
+        }
+    })
+        .then(r => r.json())
+        .then(res => {
+            if (icon) icon.classList.remove('spin-animation');
+            loadEmailsList();
+            refreshFolderCounts();
+            if (typeof showToast === 'function') showToast('success', res.message || 'Synced successfully.');
+        })
+        .catch(err => {
+            if (icon) icon.classList.remove('spin-animation');
+        });
+}
+
+/**
+ * Utilities
+ */
+function getContactInitial(nameOrEmail) {
+    if (!nameOrEmail) return '✉';
+    const clean = nameOrEmail.trim().replace(/^["']|["']$/g, '');
+    return clean.charAt(0).toUpperCase();
+}
+
+function getAvatarBgColor(str) {
+    if (!str) return '#3b82f6';
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+        hash = str.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const colors = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4', '#6366f1'];
+    return colors[Math.abs(hash) % colors.length];
+}
+
+function escapeHtml(str) {
+    return (str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function escapeAttr(str) {
+    return (str || '').replace(/"/g, '&quot;');
+}
+
+function nl2br(str) {
+    return (str || '').replace(/([^>\r\n]?)(\r\n|\n\r|\r|\n)/g, '$1<br>$2');
+}
+
+function populateThreadLabelDropdown(email) {
+    fetch('/api/email/labels')
+        .then(r => r.json())
+        .then(labels => {
+            const bulkMenu = document.getElementById('bulk-label-dropdown-menu');
+            const threadMenu = document.getElementById('thread-label-dropdown-menu');
+
+            let html = '';
+            labels.forEach(lbl => {
+                html += `
+                    <li>
+                        <a class="dropdown-item d-flex align-items-center justify-content-between py-1" href="#" onclick="window.applyBulkAction('apply_label', ${lbl.id})">
+                            <span><i class="bi bi-tag-fill me-2" style="color: ${lbl.color};"></i> ${escapeHtml(lbl.name)}</span>
+                        </a>
+                    </li>
+                `;
+            });
+            if (bulkMenu) bulkMenu.innerHTML = html;
+            if (threadMenu) threadMenu.innerHTML = html;
+        });
+}
+
+// Global Window Function Exports (Solves closure / IIFE ReferenceErrors)
+window.initEmailInboxApp = initEmailInboxApp;
+window.formatLocalTimezoneDate = formatLocalTimezoneDate;
+window.loadEmailsList = loadEmailsList;
+window.renderEmailCardsFeed = renderEmailCardsFeed;
+window.onEmailCardClick = onEmailCardClick;
+window.renderSafeEmailBodyHtml = renderSafeEmailBodyHtml;
+window.resizeEmailIframe = resizeEmailIframe;
+window.onEmailCardDragStart = onEmailCardDragStart;
+window.setupDragAndDropFolderTargets = setupDragAndDropFolderTargets;
+window.setQuickFilter = setQuickFilter;
+window.switchFolder = switchFolder;
+window.switchLabel = switchLabel;
+window.toggleSelectEmailRow = toggleSelectEmailRow;
+window.toggleSelectAllRows = toggleSelectAllRows;
+window.selectRowsByCondition = selectRowsByCondition;
+window.updateBulkSelectionUI = updateBulkSelectionUI;
+window.applyBulkAction = applyBulkAction;
+window.applyBulkActionOnIds = applyBulkActionOnIds;
+window.toggleStarRow = toggleStarRow;
+window.toggleActiveStar = toggleActiveStar;
+window.moveActiveEmail = moveActiveEmail;
+window.formatQuickReplyText = formatQuickReplyText;
+window.triggerQuickReplyAutoSave = triggerQuickReplyAutoSave;
+window.saveQuickReplyDraft = saveQuickReplyDraft;
+window.setupQuickReplyDropzone = setupQuickReplyDropzone;
+window.handleQuickReplyFileSelect = handleQuickReplyFileSelect;
+window.handleQuickReplyFiles = handleQuickReplyFiles;
+window.sendQuickReply = sendQuickReply;
+window.replySpecificMessage = replySpecificMessage;
+window.replyCurrentThread = replyCurrentThread;
+window.popoutToFullCompose = popoutToFullCompose;
+window.previewAttachmentInline = previewAttachmentInline;
+window.onEmailSearch = onEmailSearch;
+window.openAdvancedSearchModal = openAdvancedSearchModal;
+window.executeAdvancedSearch = executeAdvancedSearch;
+window.resetAdvancedSearch = resetAdvancedSearch;
+window.refreshFolderCounts = refreshFolderCounts;
+window.updateFolderCountBadge = updateFolderCountBadge;
+window.startLiveAutoSync = startLiveAutoSync;
+window.toggleLiveSync = toggleLiveSync;
+window.refreshActiveAccountEmails = refreshActiveAccountEmails;
+window.switchEmailAccountLocal = switchEmailAccountLocal;
+window.openEmailSettingsModal = openEmailSettingsModal;
+window.saveEmailSettings = saveEmailSettings;
+window.openCreateLabelModal = openCreateLabelModal;
+window.saveNewLabel = saveNewLabel;
+window.deleteLabel = deleteLabel;
+window.populateThreadLabelDropdown = populateThreadLabelDropdown;
+window.printActiveEmailThread = printActiveEmailThread;
