@@ -6,20 +6,8 @@
     <title>{{ config('app.name', 'mserp') }} - Enterprise ERP</title>
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
-    <!-- Typography: Plus Jakarta Sans -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-
-    <!-- Stylesheets: Bootstrap 5, Bootstrap Icons, AG Grid -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/ag-grid-community@30.2.1/styles/ag-grid.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/ag-grid-community@30.2.1/styles/ag-theme-alpine.min.css" rel="stylesheet">
-    
-    <!-- Quill WYSIWYG Editor styling and library -->
-    <link href="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.snow.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.js"></script>
+    <!-- Local Offline Assets via Vite -->
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
 
     <!-- Premium Custom Light Theme styling -->
     <style>
@@ -384,8 +372,7 @@
         </div>
     </div>
 
-    <!-- Bootstrap Bundle JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
 
     <!-- Global Javascript Engine -->
     <script>

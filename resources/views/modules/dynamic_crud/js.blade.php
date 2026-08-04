@@ -2,15 +2,7 @@ var gridOptions = null;
 var pageSlug = "{{ $pageConfig->slug }}";
 var primaryKey = "{{ $pageConfig->primary_key }}";
 
-// Ensure AG Grid JS is loaded
-if (typeof agGrid === 'undefined') {
-    const gridScript = document.createElement('script');
-    gridScript.src = 'https://cdn.jsdelivr.net/npm/ag-grid-community@30.2.1/dist/ag-grid-community.min.js';
-    gridScript.onload = () => initAgGrid();
-    document.head.appendChild(gridScript);
-} else {
-    initAgGrid();
-}
+initAgGrid();
 
 function initAgGrid() {
     const gridDiv = document.querySelector('#crudGrid');

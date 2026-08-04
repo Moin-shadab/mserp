@@ -125,15 +125,7 @@ function generateReport() {
     const gridCont = document.getElementById('report-grid-container');
     gridCont.classList.remove('d-none');
 
-    // Fetch Grid script if needed
-    if (typeof agGrid === 'undefined') {
-        const script = document.createElement('script');
-        script.src = 'https://cdn.jsdelivr.net/npm/ag-grid-community@30.2.1/dist/ag-grid-community.min.js';
-        script.onload = () => execReportFetch(table, cols, filters);
-        document.head.appendChild(script);
-    } else {
-        execReportFetch(table, cols, filters);
-    }
+    execReportFetch(table, cols, filters);
 }
 
 function execReportFetch(table, columns, filters) {
