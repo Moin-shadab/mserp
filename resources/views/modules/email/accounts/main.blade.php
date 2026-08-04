@@ -201,13 +201,28 @@
                                     @endforeach
                                 </ul>
                             </div>
+                        <!-- Live Diagnostic Test Feedback Alert -->
+                        <div class="col-md-12 d-none" id="test-connection-result-container">
+                            <div class="alert rounded-3 p-3 mb-0 border" id="test-connection-result-box">
+                                <div class="fw-bold small d-flex align-items-center gap-2 mb-1" id="test-connection-title">
+                                    <i class="bi bi-info-circle"></i> Connection Test Diagnostic
+                                </div>
+                                <div class="small" id="test-connection-message"></div>
+                                <div class="text-xs text-muted font-monospace mt-2 bg-white p-2 rounded border" id="test-connection-logs" style="max-height: 120px; overflow-y: auto; display: none;"></div>
+                            </div>
                         </div>
+
                     </div>
 
                 </div>
-                <div class="modal-footer border-top p-3">
-                    <button type="button" class="btn btn-sm btn-light border px-3" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-sm btn-primary px-3" id="save-account-submit-btn">Save Configurations</button>
+                <div class="modal-footer border-top p-3 d-flex align-items-center justify-content-between">
+                    <button type="button" class="btn btn-sm btn-outline-secondary px-3" onclick="testConnectionLocal(event)" id="test-connection-btn">
+                        <i class="bi bi-lightning-charge-fill text-warning me-1"></i> Test Connection
+                    </button>
+                    <div>
+                        <button type="button" class="btn btn-sm btn-light border px-3 me-2" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-sm btn-primary px-3" id="save-account-submit-btn">Save Configurations</button>
+                    </div>
                 </div>
             </form>
         </div>

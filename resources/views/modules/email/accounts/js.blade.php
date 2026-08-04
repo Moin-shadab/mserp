@@ -127,6 +127,10 @@ function openAddAccountModal() {
     document.getElementById('acc-password').required = true;
     document.getElementById('acc-password-label').innerText = 'Password / App Password';
 
+    // Hide Test Connection Result
+    const testResultContainer = document.getElementById('test-connection-result-container');
+    if (testResultContainer) testResultContainer.classList.add('d-none');
+
     // Hide Advanced configurations by default
     document.getElementById('show-advanced-switch').checked = false;
     document.getElementById('advanced-settings-container').classList.add('d-none');
@@ -152,6 +156,9 @@ function openEditAccountModal(acc) {
     document.getElementById('emailAccountModalLabel').innerText = 'Edit Connection Settings';
     document.getElementById('emailAccountForm').reset();
     
+    const testResultContainer = document.getElementById('test-connection-result-container');
+    if (testResultContainer) testResultContainer.classList.add('d-none');
+
     document.getElementById('account-id').value = acc.id;
     document.getElementById('acc-display-name').value = acc.display_name;
     document.getElementById('acc-email').value = acc.email;
@@ -183,30 +190,29 @@ function openEditAccountModal(acc) {
     modal.show();
 }
 
-// Auto-fill configs based on input domain
+// Auto-fill configs based on input domain via backend lookup
 function handleEmailInput(email) {
     const showAdvanced = document.getElementById('show-advanced-switch').checked;
-    if (showAdvanced) return; // Keep custom settings if admin checked advanced view
+    if (showAdvanced) return; // Keep custom settings if admin opened advanced view
 
     if (!email || !email.includes('@')) return;
-    const parts = email.split('@');
-    const domain = parts[parts.length - 1].toLowerCase();
 
-    if (domain === 'gmail.com') {
-        document.getElementById('acc-imap-host').value = 'imap.gmail.com';
-        document.getElementById('acc-imap-port').value = 993;
-        document.getElementById('acc-imap-encryption').value = 'ssl';
-        document.getElementById('acc-smtp-host').value = 'smtp.gmail.com';
-        document.getElementById('acc-smtp-port').value = 465;
-        document.getElementById('acc-smtp-encryption').value = 'ssl';
-    } else {
-        document.getElementById('acc-imap-host').value = 'mail.' + domain;
-        document.getElementById('acc-imap-port').value = 993;
-        document.getElementById('acc-imap-encryption').value = 'ssl';
-        document.getElementById('acc-smtp-host').value = 'mail.' + domain;
-        document.getElementById('acc-smtp-port').value = 465;
-        document.getElementById('acc-smtp-encryption').value = 'ssl';
-    }
+    fetch('/api/email-accounts/lookup-config?email=' + encodeURIComponent(email), {
+        headers: getHeadersJson()
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success && data.config) {
+            const cfg = data.config;
+            document.getElementById('acc-imap-host').value = cfg.imap_host;
+            document.getElementById('acc-imap-port').value = cfg.imap_port;
+            document.getElementById('acc-imap-encryption').value = cfg.imap_encryption;
+            document.getElementById('acc-smtp-host').value = cfg.smtp_host;
+            document.getElementById('acc-smtp-port').value = cfg.smtp_port;
+            document.getElementById('acc-smtp-encryption').value = cfg.smtp_encryption;
+        }
+    })
+    .catch(() => {});
 }
 
 // Toggle Advanced settings view
@@ -219,6 +225,86 @@ function toggleAdvancedSettings(show) {
         // Re-trigger auto-fill based on email address input
         handleEmailInput(document.getElementById('acc-email').value);
     }
+}
+
+// Test live socket connection for custom mail servers
+function testConnectionLocal(event) {
+    if (event) event.preventDefault();
+
+    const testBtn = document.getElementById('test-connection-btn');
+    const resultContainer = document.getElementById('test-connection-result-container');
+    const resultBox = document.getElementById('test-connection-result-box');
+    const resultTitle = document.getElementById('test-connection-title');
+    const resultMsg = document.getElementById('test-connection-message');
+    const resultLogs = document.getElementById('test-connection-logs');
+
+    const email = document.getElementById('acc-email').value;
+    const password = document.getElementById('acc-password').value;
+    const id = document.getElementById('account-id').value || null;
+
+    if (!email) {
+        alert('Please enter an email address before running the connection test.');
+        return;
+    }
+
+    testBtn.disabled = true;
+    testBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Testing Socket...';
+
+    resultContainer.classList.remove('d-none');
+    resultBox.className = 'alert alert-info rounded-3 p-3 mb-0 border';
+    resultTitle.innerHTML = '<i class="bi bi-arrow-repeat spin"></i> Testing IMAP & SMTP Socket Connections...';
+    resultMsg.innerText = 'Connecting to IMAP (' + document.getElementById('acc-imap-host').value + ':' + document.getElementById('acc-imap-port').value + ') and SMTP (' + document.getElementById('acc-smtp-host').value + ':' + document.getElementById('acc-smtp-port').value + ')...';
+    resultLogs.style.display = 'none';
+
+    const payload = {
+        id: id,
+        email: email,
+        password: password,
+        imap_host: document.getElementById('acc-imap-host').value,
+        imap_port: parseInt(document.getElementById('acc-imap-port').value),
+        imap_encryption: document.getElementById('acc-imap-encryption').value,
+        smtp_host: document.getElementById('acc-smtp-host').value,
+        smtp_port: parseInt(document.getElementById('acc-smtp-port').value),
+        smtp_encryption: document.getElementById('acc-smtp-encryption').value,
+    };
+
+    fetch('/api/email-accounts/test-connection', {
+        method: 'POST',
+        headers: getHeadersJson(),
+        body: JSON.stringify(payload)
+    })
+    .then(res => res.json())
+    .then(data => {
+        testBtn.disabled = false;
+        testBtn.innerHTML = '<i class="bi bi-lightning-charge-fill text-warning me-1"></i> Test Connection';
+
+        if (data.success) {
+            resultBox.className = 'alert alert-success rounded-3 p-3 mb-0 border';
+            resultTitle.innerHTML = '<i class="bi bi-check-circle-fill text-success me-1"></i> Connection Test Passed';
+        } else {
+            resultBox.className = 'alert alert-danger rounded-3 p-3 mb-0 border';
+            resultTitle.innerHTML = '<i class="bi bi-exclamation-triangle-fill text-danger me-1"></i> Connection Diagnostic Failed';
+        }
+
+        resultMsg.innerText = data.message || (data.success ? 'Socket connections verified successfully!' : 'Unable to establish socket connection.');
+        
+        const logs = [];
+        if (data.imap_logs && data.imap_logs.length) logs.push('--- IMAP Logs ---', ...data.imap_logs);
+        if (data.smtp_logs && data.smtp_logs.length) logs.push('--- SMTP Logs ---', ...data.smtp_logs);
+        
+        if (logs.length > 0) {
+            resultLogs.innerText = logs.join('\n');
+            resultLogs.style.display = 'block';
+        }
+    })
+    .catch(err => {
+        testBtn.disabled = false;
+        testBtn.innerHTML = '<i class="bi bi-lightning-charge-fill text-warning me-1"></i> Test Connection';
+
+        resultBox.className = 'alert alert-danger rounded-3 p-3 mb-0 border';
+        resultTitle.innerHTML = '<i class="bi bi-x-circle-fill text-danger me-1"></i> Request Error';
+        resultMsg.innerText = err.message || 'Failed to execute connection test.';
+    });
 }
 
 // Submit Account Settings Save

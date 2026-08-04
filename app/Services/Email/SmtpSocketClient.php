@@ -51,7 +51,10 @@ class SmtpSocketClient extends SocketClient
             }
 
             // 3. STARTTLS Upgrade if needed
-            if ($this->encryption === 'starttls') {
+            $isStartTls = ($this->encryption === 'starttls') || 
+                          ($this->encryption === 'tls' && !in_array($this->port, [465, 993, 995]));
+
+            if ($isStartTls) {
                 $this->send("STARTTLS");
                 $response = $this->readResponse();
                 if (!$this->checkCode($response, '220')) {
@@ -63,7 +66,8 @@ class SmtpSocketClient extends SocketClient
                 }
 
                 // Re-handshake after encryption upgrade
-                $this->send("EHLO " . request()->getHost());
+                $hostName = request() ? request()->getHost() : 'localhost';
+                $this->send("EHLO " . $hostName);
                 $response = $this->readResponse();
                 if (!$this->checkCode($response, '250')) {
                     throw new \Exception("EHLO after TLS upgrade failed: " . $response);

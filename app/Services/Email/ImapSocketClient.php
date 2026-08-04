@@ -34,6 +34,19 @@ class ImapSocketClient extends SocketClient
         }
 
         try {
+            $isStartTls = ($this->encryption === 'starttls') || 
+                          ($this->encryption === 'tls' && !in_array($this->port, [993, 465, 995]));
+
+            if ($isStartTls) {
+                $response = $this->executeCommand("STARTTLS");
+                if (!$this->isOk($response)) {
+                    throw new \Exception("IMAP STARTTLS failed: " . implode("\n", $response));
+                }
+                if (!$this->enableCrypto()) {
+                    throw new \Exception("IMAP STARTTLS stream upgrade failed.");
+                }
+            }
+
             $response = $this->executeCommand("LOGIN \"{$this->username}\" \"{$this->password}\"");
             if (!$this->isOk($response)) {
                 throw new \Exception("IMAP Login failed: " . implode("\n", $response));

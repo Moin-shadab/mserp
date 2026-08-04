@@ -326,6 +326,8 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/api/email-accounts', [EmailController::class, 'getEmailAccounts']);
     Route::post('/api/email-accounts/store', [EmailController::class, 'storeEmailAccount']);
     Route::delete('/api/email-accounts/delete/{id}', [EmailController::class, 'deleteEmailAccount']);
+    Route::get('/api/email-accounts/lookup-config', [EmailController::class, 'lookupServerConfig']);
+    Route::post('/api/email-accounts/test-connection', [EmailController::class, 'testAccountConnection']);
 
     // Dynamic Report Builder routes
     Route::get('/reports', [ReportController::class, 'index']);

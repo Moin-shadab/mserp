@@ -32,6 +32,20 @@ class Pop3SocketClient extends SocketClient
         }
 
         try {
+            $isStartTls = ($this->encryption === 'starttls') || 
+                          ($this->encryption === 'tls' && !in_array($this->port, [995, 465, 993]));
+
+            if ($isStartTls) {
+                $this->send("STLS");
+                $response = $this->readLine();
+                if (!$this->isSuccess($response)) {
+                    throw new \Exception("POP3 STLS rejected: " . $response);
+                }
+                if (!$this->enableCrypto()) {
+                    throw new \Exception("POP3 STLS stream upgrade failed.");
+                }
+            }
+
             $this->send("USER {$this->username}");
             $response = $this->readLine();
             if (!$this->isSuccess($response)) {

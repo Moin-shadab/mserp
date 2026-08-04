@@ -32,10 +32,14 @@ abstract class SocketClient
                 'verify_peer' => false,
                 'verify_peer_name' => false,
                 'allow_self_signed' => true,
+                'crypto_method' => STREAM_CRYPTO_METHOD_TLS_CLIENT | STREAM_CRYPTO_METHOD_TLSv1_2_CLIENT | STREAM_CRYPTO_METHOD_TLSv1_3_CLIENT,
             ]
         ]);
         
-        $target = ($this->encryption === 'ssl' || $this->encryption === 'tls' ? 'ssl://' : '') . $this->host . ':' . $this->port;
+        $isDirectSsl = ($this->encryption === 'ssl') || 
+                       ($this->encryption === 'tls' && in_array($this->port, [465, 993, 995]));
+
+        $target = ($isDirectSsl ? 'ssl://' : '') . $this->host . ':' . $this->port;
         
         $errno = 0;
         $errstr = '';

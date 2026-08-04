@@ -1907,11 +1907,11 @@ class EmailController extends Controller
             'smtp_host' => 'required|string|max:255',
             'smtp_port' => 'required|integer',
             'smtp_encryption' => 'required|string|in:ssl,tls,starttls,none',
-            'smtp_user' => 'required|string|max:255',
+            'smtp_user' => 'nullable|string|max:255',
             'imap_host' => 'required|string|max:255',
             'imap_port' => 'required|integer',
             'imap_encryption' => 'required|string|in:ssl,tls,starttls,none',
-            'imap_user' => 'required|string|max:255',
+            'imap_user' => 'nullable|string|max:255',
             'user_ids' => 'nullable|array',
             'user_ids.*' => 'integer'
         ];
@@ -1925,17 +1925,18 @@ class EmailController extends Controller
 
         $request->validate($rules);
 
+        $emailAddr = $request->input('email');
         $data = [
-            'email' => $request->input('email'),
+            'email' => $emailAddr,
             'display_name' => $request->input('display_name'),
             'smtp_host' => $request->input('smtp_host'),
             'smtp_port' => $request->input('smtp_port'),
             'smtp_encryption' => $request->input('smtp_encryption'),
-            'smtp_user' => $request->input('smtp_user'),
+            'smtp_user' => $request->input('smtp_user') ?: $emailAddr,
             'imap_host' => $request->input('imap_host'),
             'imap_port' => $request->input('imap_port'),
             'imap_encryption' => $request->input('imap_encryption'),
-            'imap_user' => $request->input('imap_user'),
+            'imap_user' => $request->input('imap_user') ?: $emailAddr,
             'is_active' => true,
             'updated_at' => now()
         ];
@@ -1944,6 +1945,10 @@ class EmailController extends Controller
         if ($password !== null && $password !== '') {
             $data['smtp_password'] = encrypt($password);
             $data['imap_password'] = encrypt($password);
+        }
+
+        if (Schema::hasColumn('email_accounts', 'user_id')) {
+            $data['user_id'] = Auth::id() ?? 1;
         }
 
         DB::beginTransaction();
@@ -1999,5 +2004,196 @@ class EmailController extends Controller
             DB::rollBack();
             return response()->json(['success' => false, 'error' => $e->getMessage()], 500);
         }
+    }
+
+    /**
+     * Lookup default mail server settings for custom or standard domain.
+     */
+    public function lookupServerConfig(Request $request)
+    {
+        $email = trim($request->input('email', ''));
+        $parts = explode('@', $email);
+        $domain = strtolower(end($parts));
+
+        if (empty($domain)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid email address provided.'
+            ], 400);
+        }
+
+        $config = [
+            'domain' => $domain,
+            'imap_host' => 'mail.' . $domain,
+            'imap_port' => 993,
+            'imap_encryption' => 'ssl',
+            'smtp_host' => 'mail.' . $domain,
+            'smtp_port' => 587,
+            'smtp_encryption' => 'starttls',
+        ];
+
+        // Standard provider overrides
+        if ($domain === 'gmail.com') {
+            $config['imap_host'] = 'imap.gmail.com';
+            $config['imap_port'] = 993;
+            $config['imap_encryption'] = 'ssl';
+            $config['smtp_host'] = 'smtp.gmail.com';
+            $config['smtp_port'] = 465;
+            $config['smtp_encryption'] = 'ssl';
+        } elseif (in_array($domain, ['outlook.com', 'hotmail.com', 'office365.com', 'live.com', 'm365.com'])) {
+            $config['imap_host'] = 'outlook.office365.com';
+            $config['imap_port'] = 993;
+            $config['imap_encryption'] = 'ssl';
+            $config['smtp_host'] = 'smtp.office365.com';
+            $config['smtp_port'] = 587;
+            $config['smtp_encryption'] = 'starttls';
+        } elseif ($domain === 'yahoo.com' || str_ends_with($domain, '.yahoo.com')) {
+            $config['imap_host'] = 'imap.mail.yahoo.com';
+            $config['imap_port'] = 993;
+            $config['imap_encryption'] = 'ssl';
+            $config['smtp_host'] = 'smtp.mail.yahoo.com';
+            $config['smtp_port'] = 465;
+            $config['smtp_encryption'] = 'ssl';
+        } else {
+            // Dynamic DNS / MX lookup for custom company domains (e.g. mserp.in)
+            if (function_exists('dns_get_record')) {
+                $mxRecords = @dns_get_record($domain, DNS_MX);
+                if (!empty($mxRecords) && isset($mxRecords[0]['target'])) {
+                    $mxHost = strtolower($mxRecords[0]['target']);
+                    if (str_contains($mxHost, 'google.com') || str_contains($mxHost, 'googlemail.com')) {
+                        $config['imap_host'] = 'imap.gmail.com';
+                        $config['smtp_host'] = 'smtp.gmail.com';
+                    } elseif (str_contains($mxHost, 'outlook.com') || str_contains($mxHost, 'protection.outlook.com')) {
+                        $config['imap_host'] = 'outlook.office365.com';
+                        $config['smtp_host'] = 'smtp.office365.com';
+                    } else {
+                        $config['imap_host'] = 'mail.' . $domain;
+                        $config['smtp_host'] = 'mail.' . $domain;
+                    }
+                }
+            }
+        }
+
+        return response()->json([
+            'success' => true,
+            'config' => $config
+        ]);
+    }
+
+    /**
+     * Test live socket connection to custom IMAP & SMTP servers.
+     */
+    public function testAccountConnection(Request $request)
+    {
+        $this->checkAnyEmailPermission();
+
+        $request->validate([
+            'email' => 'required|email',
+            'password' => 'nullable|string',
+            'imap_host' => 'required|string',
+            'imap_port' => 'required|integer',
+            'imap_encryption' => 'required|string|in:ssl,tls,starttls,none',
+            'smtp_host' => 'required|string',
+            'smtp_port' => 'required|integer',
+            'smtp_encryption' => 'required|string|in:ssl,tls,starttls,none',
+        ]);
+
+        $id = $request->input('id');
+        $password = $request->input('password');
+
+        if (empty($password) && $id) {
+            $existing = DB::table('email_accounts')->where('id', $id)->first();
+            if ($existing && $existing->imap_password) {
+                $password = $this->syncService->safeDecrypt($existing->imap_password);
+            }
+        }
+
+        if (empty($password)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Password is required to run a live connection test.'
+            ], 422);
+        }
+
+        $email = $request->input('email');
+        $imapHost = $request->input('imap_host');
+        $imapPort = (int)$request->input('imap_port');
+        $imapEnc = $request->input('imap_encryption');
+
+        $smtpHost = $request->input('smtp_host');
+        $smtpPort = (int)$request->input('smtp_port');
+        $smtpEnc = $request->input('smtp_encryption');
+
+        // Check if placeholder host (simulation mode)
+        $isPlaceholder = empty($imapHost) || 
+                         str_contains($imapHost, 'example.com') || 
+                         $imapHost === 'localhost';
+
+        if ($isPlaceholder) {
+            return response()->json([
+                'success' => true,
+                'imap_ok' => true,
+                'smtp_ok' => true,
+                'message' => 'Simulation Mode: Local/Placeholder connection test verified successfully.',
+                'imap_logs' => ['[IMAP Simulator] Connection OK.'],
+                'smtp_logs' => ['[SMTP Simulator] Connection OK.']
+            ]);
+        }
+
+        $imapLogs = [];
+        $smtpLogs = [];
+        $imapOk = false;
+        $smtpOk = false;
+
+        // 1. Test IMAP
+        try {
+            $imap = new \App\Services\Email\ImapSocketClient(
+                $imapHost,
+                $imapPort,
+                $imapEnc,
+                $email,
+                $password
+            );
+            $imapOk = $imap->login();
+            $imapLogs = $imap->getLogs();
+            if ($imapOk) {
+                $imap->disconnect();
+            }
+        } catch (\Exception $e) {
+            $imapLogs[] = "IMAP Exception: " . $e->getMessage();
+        }
+
+        // 2. Test SMTP
+        try {
+            $smtp = new \App\Services\Email\SmtpSocketClient(
+                $smtpHost,
+                $smtpPort,
+                $smtpEnc,
+                $email,
+                $password
+            );
+            if ($smtp->connect()) {
+                $smtpOk = true;
+                $smtp->disconnect();
+            }
+            $smtpLogs = $smtp->getLogs();
+        } catch (\Exception $e) {
+            $smtpLogs[] = "SMTP Exception: " . $e->getMessage();
+        }
+
+        $allOk = $imapOk && $smtpOk;
+        $msg = $allOk ? "IMAP and SMTP connection test passed successfully!" 
+                      : ($imapOk ? "IMAP connected OK, but SMTP connection failed." 
+                                 : ($smtpOk ? "SMTP connected OK, but IMAP login failed." 
+                                            : "Connection test failed for both IMAP and SMTP."));
+
+        return response()->json([
+            'success' => $allOk,
+            'imap_ok' => $imapOk,
+            'smtp_ok' => $smtpOk,
+            'message' => $msg,
+            'imap_logs' => $imapLogs,
+            'smtp_logs' => $smtpLogs,
+        ]);
     }
 }

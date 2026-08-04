@@ -493,5 +493,85 @@ class EmailServiceTest extends TestCase
         $this->assertNotNull($attachment);
         Storage::assertExists($attachment->file_path);
     }
+
+    /**
+     * Test server lookup config returns dynamic settings for custom domain (@mserp.in).
+     */
+    public function test_lookup_server_config_for_custom_domain(): void
+    {
+        $response = $this->getJson('/api/email-accounts/lookup-config?email=user@mserp.in');
+
+        $response->assertStatus(200)
+                 ->assertJson([
+                     'success' => true,
+                     'config' => [
+                         'domain' => 'mserp.in',
+                         'imap_host' => 'mail.mserp.in',
+                         'imap_port' => 993,
+                         'imap_encryption' => 'ssl',
+                         'smtp_host' => 'mail.mserp.in',
+                         'smtp_port' => 587,
+                         'smtp_encryption' => 'starttls',
+                     ]
+                 ]);
+    }
+
+    /**
+     * Test store custom email account with custom ports and STARTTLS/SSL.
+     */
+    public function test_store_custom_email_account(): void
+    {
+        $payload = [
+            'email' => 'admin@mserp.in',
+            'display_name' => 'MS ERP Admin',
+            'password' => 'secret123',
+            'imap_host' => 'mail.mserp.in',
+            'imap_port' => 993,
+            'imap_encryption' => 'ssl',
+            'smtp_host' => 'mail.mserp.in',
+            'smtp_port' => 587,
+            'smtp_encryption' => 'starttls',
+        ];
+
+        $response = $this->postJson('/api/email-accounts/store', $payload);
+
+        $response->assertStatus(200)
+                 ->assertJson(['success' => true]);
+
+        $account = DB::table('email_accounts')->where('email', 'admin@mserp.in')->first();
+        $this->assertNotNull($account);
+        $this->assertEquals('mail.mserp.in', $account->imap_host);
+        $this->assertEquals(993, $account->imap_port);
+        $this->assertEquals('ssl', $account->imap_encryption);
+        $this->assertEquals('mail.mserp.in', $account->smtp_host);
+        $this->assertEquals(587, $account->smtp_port);
+        $this->assertEquals('starttls', $account->smtp_encryption);
+    }
+
+    /**
+     * Test live account connection test endpoint in placeholder / simulation mode.
+     */
+    public function test_test_account_connection_endpoint(): void
+    {
+        $payload = [
+            'email' => 'test@example.com',
+            'password' => 'password123',
+            'imap_host' => 'localhost',
+            'imap_port' => 993,
+            'imap_encryption' => 'ssl',
+            'smtp_host' => 'localhost',
+            'smtp_port' => 587,
+            'smtp_encryption' => 'starttls',
+        ];
+
+        $response = $this->postJson('/api/email-accounts/test-connection', $payload);
+
+        $response->assertStatus(200)
+                 ->assertJson([
+                     'success' => true,
+                     'imap_ok' => true,
+                     'smtp_ok' => true
+                 ]);
+    }
 }
 
