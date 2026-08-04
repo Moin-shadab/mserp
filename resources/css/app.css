@@ -19,3 +19,28 @@
         'Segoe UI Symbol', 'Noto Color Emoji';
 }
 
+/* Quill WYSIWYG Editor Image Containment & Layout */
+.ql-editor img {
+    max-width: 100% !important;
+    height: auto !important;
+    object-fit: contain;
+    border-radius: 4px;
+}
+
+.ql-editor {
+    min-height: 180px;
+    max-height: 380px;
+    overflow-y: auto;
+}
+
+.ql-container.ql-snow {
+    border-bottom-left-radius: 8px;
+    border-bottom-right-radius: 8px;
+}
+
+.ql-toolbar.ql-snow {
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+    background-color: #f8fafc;
+}
+

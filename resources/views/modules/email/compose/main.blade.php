@@ -137,8 +137,8 @@
                             </div>
                         </div>
 
-                        <!-- Rich Text Editor Area (Quill WYSIWYG) -->
-                        <div id="compose-editor-container" class="mb-3 bg-white" style="height: 300px; display: flex; flex-direction: column;">
+                        <!-- Rich Text Editor Area (Quill 2.0 WYSIWYG with Table & Image Resizer) -->
+                        <div id="compose-editor-container" class="mb-3 bg-white" style="height: 350px; display: flex; flex-direction: column;">
                             <div id="compose-editor" style="flex-grow: 1; font-family: var(--erp-font-family); font-size: 0.85rem;">
                                 @if($replyMail)
                                     <br><br>

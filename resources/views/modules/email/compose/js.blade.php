@@ -1,25 +1,43 @@
-// Initialize Quill Editor
+// Initialize 1-Line ERP Editor
 let quill = null;
-if (document.getElementById('compose-editor')) {
-    quill = new Quill('#compose-editor', {
-        theme: 'snow',
-        placeholder: 'Write your email here...',
-        modules: {
-            toolbar: [
-                ['bold', 'italic', 'underline', 'strike'],        // toggled buttons
-                ['blockquote', 'code-block'],
-                [{ 'list': 'ordered'}, { 'list': 'bullet' }],
-                [{ 'script': 'sub'}, { 'script': 'super' }],      // superscript/subscript
-                [{ 'indent': '-1'}, { 'indent': '+1' }],          // outdent/indent
-                [{ 'header': [1, 2, 3, 4, 5, 6, false] }],
-                [{ 'color': [] }, { 'background': [] }],          // dropdown with defaults from theme
-                [{ 'align': [] }],
-                ['link', 'image'],
-                ['clean']                                         // remove formatting button
-            ]
-        }
-    });
+
+function getEditorContent() {
+    return quill ? quill.getHTML() : (document.getElementById('compose-editor')?.innerHTML || '');
 }
+
+function setEditorContent(html) {
+    if (quill) {
+        quill.setHTML(html || '');
+    } else {
+        const elem = document.getElementById('compose-editor');
+        if (elem) elem.innerHTML = html || '';
+    }
+}
+
+function initQuillInstance() {
+    const editorTarget = document.getElementById('compose-editor');
+    if (!editorTarget) return;
+
+    if (typeof window.initErpEditor === 'undefined') {
+        setTimeout(initQuillInstance, 50);
+        return;
+    }
+
+    if (quill) return;
+
+    // 1-line initialization using global ERP Editor helper
+    quill = window.initErpEditor('#compose-editor', { placeholder: 'Write your email here...' });
+
+    quill.on('text-change', () => {
+        isFormDirty = true;
+    });
+
+    if (typeof toggleSignature === 'function') {
+        toggleSignature();
+    }
+}
+
+initQuillInstance();
 
 // Attachment files handling
 let selectedFiles = [];
@@ -59,23 +77,26 @@ function addFiles(files) {
         selectedFiles.push(f);
     });
     renderFileList();
+    isFormDirty = true;
 }
 
 function removeFile(index) {
     selectedFiles.splice(index, 1);
     renderFileList();
+    isFormDirty = true;
 }
 
 function renderFileList() {
     const list = document.getElementById('file-list');
     if (!list) return;
     list.innerHTML = '';
-    selectedFiles.forEach((f, idx) => {
+    selectedFiles.forEach((file, index) => {
         const div = document.createElement('div');
-        div.className = 'badge bg-white border text-muted d-flex align-items-center p-2 rounded-3';
+        div.className = 'badge bg-white text-dark border d-flex align-items-center gap-2 p-2 shadow-sm';
         div.innerHTML = `
-            <i class="bi bi-paperclip me-1"></i> ${f.name} (${(f.size/1024).toFixed(1)} KB)
-            <button type="button" class="btn-close ms-2" style="font-size:0.55rem;" onclick="event.stopPropagation(); removeFile(${idx})"></button>
+            <i class="bi bi-paperclip text-muted"></i>
+            <span>${file.name} (${(file.size / 1024).toFixed(1)} KB)</span>
+            <i class="bi bi-x-circle-fill text-danger cursor-pointer ms-1" onclick="removeFile(${index})"></i>
         `;
         list.appendChild(div);
     });
@@ -84,20 +105,17 @@ function renderFileList() {
 // Templates and signatures injection
 function applyTemplate(tmpl) {
     document.getElementById('c-subject').value = tmpl.subject || '';
-    if (quill) {
-        quill.root.innerHTML = tmpl.body || '';
-    }
+    setEditorContent(tmpl.body || '');
     toggleSignature(); // append signature if active
     showToast('success', 'Template applied.');
 }
 
 function toggleSignature() {
-    if (!quill) return;
     const hasSig = document.getElementById('signature-switch') ? document.getElementById('signature-switch').checked : false;
     const sigVal = document.getElementById('raw-signature') ? document.getElementById('raw-signature').value : '';
 
     // Remove existing signature placeholder if present
-    let html = quill.root.innerHTML;
+    let html = getEditorContent();
     const sigMarkIndex = html.indexOf('<div class="email-sig-wrapper"');
     if (sigMarkIndex !== -1) {
         html = html.substring(0, sigMarkIndex);
@@ -107,11 +125,8 @@ function toggleSignature() {
         html += `<div class="email-sig-wrapper" style="margin-top: 20px;"><br>--<br>${sigVal}</div>`;
     }
 
-    quill.root.innerHTML = html;
+    setEditorContent(html);
 }
-
-// Append signature initially if exists
-setTimeout(toggleSignature, 100);
 
 // Auto-save draft setup
 let isFormDirty = false;
@@ -119,11 +134,6 @@ const composeForm = document.getElementById('email-compose-form');
 
 if (composeForm) {
     composeForm.oninput = () => isFormDirty = true;
-}
-if (quill) {
-    quill.on('text-change', () => {
-        isFormDirty = true;
-    });
 }
 
 const autoSaveInterval = setInterval(() => {
@@ -152,15 +162,13 @@ function saveAsDraft(silent = false) {
     const cBccInput = document.getElementById('c-bcc');
     const cSubjectInput = document.getElementById('c-subject');
 
-    if (!quill) return;
-
     const draftId = draftIdInput ? draftIdInput.value : '';
     const threadId = threadIdInput ? threadIdInput.value : '';
     const to = cToInput ? cToInput.value : '';
     const cc = cCcInput ? cCcInput.value : '';
     const bcc = cBccInput ? cBccInput.value : '';
     const subject = cSubjectInput ? cSubjectInput.value : '';
-    const bodyHtml = quill.root.innerHTML;
+    const bodyHtml = getEditorContent();
 
     const inReplyToInput = document.getElementById('in-reply-to');
     const inReplyTo = inReplyToInput ? inReplyToInput.value : '';
@@ -204,7 +212,7 @@ function sendEmail() {
     const cc = document.getElementById('c-cc') ? document.getElementById('c-cc').value : '';
     const bcc = document.getElementById('c-bcc') ? document.getElementById('c-bcc').value : '';
     const subject = document.getElementById('c-subject') ? document.getElementById('c-subject').value : '';
-    const bodyHtml = quill ? quill.root.innerHTML : '';
+    const bodyHtml = getEditorContent();
     const threadId = document.getElementById('thread-id') ? document.getElementById('thread-id').value : '';
     const inReplyTo = document.getElementById('in-reply-to') ? document.getElementById('in-reply-to').value : '';
 

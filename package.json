@@ -20,6 +20,7 @@
         "bootstrap": "^5.3.8",
         "bootstrap-icons": "^1.13.1",
         "chart.js": "^4.5.1",
-        "quill": "^2.0.3"
+        "quill": "^2.0.3",
+        "suneditor": "^3.2.6"
     }
 }

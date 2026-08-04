@@ -232,7 +232,15 @@
     initSalesChart();
 
     function initSalesChart() {
-        const ctx = document.getElementById('salesSummaryChart').getContext('2d');
+        const canvas = document.getElementById('salesSummaryChart');
+        if (!canvas) return;
+
+        if (typeof Chart === 'undefined') {
+            setTimeout(initSalesChart, 50);
+            return;
+        }
+
+        const ctx = canvas.getContext('2d');
         
         // Parse Monthly sales object
         const chartData = @json($monthlySales);
