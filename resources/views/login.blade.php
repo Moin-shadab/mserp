@@ -5,6 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Easy Sign In - MS ERP</title>
 
+    <!-- Favicon Branding -->
+    <link rel="icon" type="image/png" href="{{ asset('favicon.png') }}">
+    <link rel="shortcut icon" type="image/png" href="{{ asset('favicon.png') }}">
+    <link rel="apple-touch-icon" href="{{ asset('images/favicon.png') }}">
+
     <!-- Local Offline Assets via Vite -->
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 
@@ -156,7 +161,7 @@
         <div class="col-lg-7 form-side">
             <div class="mb-4">
                 <div class="d-flex align-items-center gap-2 mb-1">
-                    <i class="bi bi-box-seam-fill text-primary fs-3"></i>
+                    <img src="{{ asset('images/favicon.png') }}" alt="MS ERP Logo" style="height: 38px; width: 38px; object-fit: contain; border-radius: 8px;">
                     <h4 class="fw-extrabold m-0 text-dark">Welcome to MS ERP</h4>
                 </div>
                 <p class="text-muted small">Sign in with your credentials or click any demo role below to jump right in.</p>

@@ -6,6 +6,11 @@
     <title>{{ config('app.name', 'mserp') }} - Enterprise ERP</title>
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
+    <!-- Favicon Branding -->
+    <link rel="icon" type="image/png" href="{{ asset('favicon.png') }}">
+    <link rel="shortcut icon" type="image/png" href="{{ asset('favicon.png') }}">
+    <link rel="apple-touch-icon" href="{{ asset('images/favicon.png') }}">
+
     <!-- Local Offline Assets via Vite -->
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 
@@ -267,9 +272,9 @@
     <div id="wrapper">
         <!-- Sidebar -->
         <nav id="sidebar">
-            <div class="sidebar-brand">
-                <i class="bi bi-cpu text-primary me-2 fs-4"></i>
-                <span>MS ERP</span>
+            <div class="sidebar-brand d-flex align-items-center gap-2">
+                <img src="{{ asset('images/favicon.png') }}" alt="MS ERP Logo" style="height: 32px; width: 32px; object-fit: contain; border-radius: 6px;">
+                <span class="fw-bold tracking-tight">MS ERP</span>
             </div>
             
             <div class="sidebar-menu">
