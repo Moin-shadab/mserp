@@ -229,15 +229,7 @@
 
 <!-- Dynamic chart loading scripting -->
 <script>
-    // Ensure Chart.js is loaded
-    if (typeof Chart === 'undefined') {
-        const script = document.createElement('script');
-        script.src = 'https://cdn.jsdelivr.net/npm/chart.js';
-        script.onload = () => initSalesChart();
-        document.head.appendChild(script);
-    } else {
-        initSalesChart();
-    }
+    initSalesChart();
 
     function initSalesChart() {
         const ctx = document.getElementById('salesSummaryChart').getContext('2d');
