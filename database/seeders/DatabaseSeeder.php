@@ -1095,36 +1095,55 @@ class DatabaseSeeder extends Seeder
             'updated_at' => now(),
         ]);
 
-        // 10. Email Accounts (Gmail settings configured with user app password)
-        $emailAccData = [
-            'email' => 'moinahmed5426@gmail.com',
-            'display_name' => 'Moin Shadab',
+        // 10. Dummy Template Email Accounts (@gmail.com and @mserp.in)
+        // Users can change password and email under Email > Settings
+        $gmailAccData = [
+            'email' => 'demo.user@gmail.com',
+            'display_name' => 'Demo Gmail Account',
             'smtp_host' => 'smtp.gmail.com',
-            'smtp_port' => 465,
-            'smtp_encryption' => 'ssl',
-            'smtp_user' => 'moinahmed5426@gmail.com',
-            'smtp_password' => encrypt('sbbcctqvmqlqwujt'),
+            'smtp_port' => 587,
+            'smtp_encryption' => 'tls',
+            'smtp_user' => 'demo.user@gmail.com',
+            'smtp_password' => encrypt('your-app-password-here'),
             'imap_host' => 'imap.gmail.com',
             'imap_port' => 993,
             'imap_encryption' => 'ssl',
-            'imap_user' => 'moinahmed5426@gmail.com',
-            'imap_password' => encrypt('sbbcctqvmqlqwujt'),
+            'imap_user' => 'demo.user@gmail.com',
+            'imap_password' => encrypt('your-app-password-here'),
+            'is_active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ];
+
+        $customAccData = [
+            'email' => 'user@mserp.in',
+            'display_name' => 'MS ERP Custom Mail',
+            'smtp_host' => 'mail.mserp.in',
+            'smtp_port' => 587,
+            'smtp_encryption' => 'tls',
+            'smtp_user' => 'user@mserp.in',
+            'smtp_password' => encrypt('your-mail-password-here'),
+            'imap_host' => 'mail.mserp.in',
+            'imap_port' => 993,
+            'imap_encryption' => 'ssl',
+            'imap_user' => 'user@mserp.in',
+            'imap_password' => encrypt('your-mail-password-here'),
             'is_active' => true,
             'created_at' => now(),
             'updated_at' => now(),
         ];
 
         if (Schema::hasColumn('email_accounts', 'user_id')) {
-            $emailAccData['user_id'] = $cfoId;
+            $gmailAccData['user_id'] = $cfoId;
+            $customAccData['user_id'] = $cfoId;
         }
 
-        $emailAccId = DB::table('email_accounts')->insertGetId($emailAccData);
+        $emailAccId = DB::table('email_accounts')->insertGetId($gmailAccData);
+        $customAccId = DB::table('email_accounts')->insertGetId($customAccData);
 
         DB::table('email_account_users')->insert([
-            'email_account_id' => $emailAccId,
-            'user_id' => $cfoId,
-            'created_at' => now(),
-            'updated_at' => now(),
+            ['email_account_id' => $emailAccId, 'user_id' => $cfoId, 'created_at' => now(), 'updated_at' => now()],
+            ['email_account_id' => $customAccId, 'user_id' => $cfoId, 'created_at' => now(), 'updated_at' => now()],
         ]);
 
         // 11. Email Templates & Signatures

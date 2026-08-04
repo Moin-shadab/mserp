@@ -4,7 +4,6 @@ namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
-use Illuminate\Support\Facades\DB;
 
 class ErpSetupCommand extends Command
 {
@@ -13,14 +12,21 @@ class ErpSetupCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'erp:setup {--force : Force database migration and seed without prompts}';
+    protected $signature = 'erp:install {--force : Force database migration and seed without prompts}';
+
+    /**
+     * Aliases for the command.
+     *
+     * @var array
+     */
+    protected $aliases = ['erp:setup'];
 
     /**
      * The console command description.
      *
      * @var string
      */
-    protected $description = 'Complete zero-config 1-command ERP setup (DB creation, migration, seeding, and default logins)';
+    protected $description = 'Complete 1-command ERP installer (DB creation, migration, dummy data seeding, and login credentials)';
 
     /**
      * Execute the console command.
@@ -28,7 +34,7 @@ class ErpSetupCommand extends Command
     public function handle()
     {
         $this->info("=================================================");
-        $this->info("      🚀 MS ERP - ZERO-CONFIG SETUP ENGINE      ");
+        $this->info("      🚀 MS ERP - ONE-COMMAND INSTALLER         ");
         $this->info("=================================================");
 
         // Step 1: Environment file setup (.env)
@@ -60,7 +66,7 @@ class ErpSetupCommand extends Command
         }
 
         // Step 4: Run Migrations and Seeders
-        $this->info("⚙ Running database migrations and seeding dynamic ERP metadata...");
+        $this->info("⚙ Running database migrations and seeding dynamic ERP metadata & dummy accounts...");
         $this->call('migrate:fresh', [
             '--force' => true,
             '--seed' => true
@@ -69,7 +75,7 @@ class ErpSetupCommand extends Command
         // Step 5: Render Setup Complete Dashboard & Login Credentials
         $this->newLine();
         $this->info("========================================================================");
-        $this->info("🎉 ERP INSTALLED & READY TO USE - ZERO HARDCODING & FULLY SECURED 🎉");
+        $this->info("🎉 ERP INSTALLED & READY TO USE - FULLY CONFIDENTIAL & DUMMY SEEDED 🎉");
         $this->info("========================================================================");
         $this->newLine();
         
@@ -87,8 +93,18 @@ class ErpSetupCommand extends Command
         );
 
         $this->newLine();
+        $this->line("<fg=cyan;options=bold>TEMPLATE EMAIL ACCOUNTS SEEDED (Update under Email > Settings):</>");
+        $this->table(
+            ['Type', 'Dummy Address', 'SMTP Host', 'IMAP Host'],
+            [
+                ['Gmail Account', 'demo.user@gmail.com', 'smtp.gmail.com:587 (TLS)', 'imap.gmail.com:993 (SSL)'],
+                ['Custom Mail Server', 'user@mserp.in', 'mail.mserp.in:587 (TLS)', 'mail.mserp.in:993 (SSL)']
+            ]
+        );
+
+        $this->newLine();
         $this->info("📌 TO START THE APP:");
-        $this->line("   Run: <fg=yellow>php artisan serve</> or <fg=yellow>npm run dev</>");
+        $this->line("   Run: <fg=yellow>php artisan serve</>");
         $this->line("   Open: <fg=green>http://127.0.0.1:8000</>");
         $this->info("========================================================================");
 
