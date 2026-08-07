@@ -267,33 +267,58 @@ class EmailController extends Controller
             if ($replyMail) {
                 $replyMail->mode = $mode;
                 $cleanSubj = trim(preg_replace('/^((Re|Fwd|Fw):\s*)+/i', '', $replyMail->subject ?? ''));
+                $userEmail = strtolower($account->email ?? '');
+
+                $fromEmails = $this->parseEmailAddresses($replyMail->from_address);
+                $toEmails = $this->parseEmailAddresses($replyMail->to_address);
+                $ccEmails = $this->parseEmailAddresses($replyMail->cc_address);
+
+                $fromSender = !empty($fromEmails) ? $fromEmails[0] : strtolower(trim($replyMail->from_address));
 
                 if ($mode === 'forward') {
+                    // Gmail Forward logic: To, CC, BCC are completely empty for user to select recipients
                     $replyMail->compose_subject = 'Fwd: ' . $cleanSubj;
                     $replyMail->compose_to = '';
                     $replyMail->compose_cc = '';
-                } elseif ($mode === 'reply_all') {
-                    $replyMail->compose_subject = 'Re: ' . $cleanSubj;
-                    $allRecipients = array_filter(array_map('trim', explode(',', $replyMail->from_address . ',' . $replyMail->to_address)));
-                    $allRecipients = array_values(array_filter($allRecipients, function($addr) use ($account) {
-                        return strtolower($addr) !== strtolower($account->email ?? '');
-                    }));
-                    if (empty($allRecipients)) {
-                        $allRecipients = [$replyMail->from_address];
-                    }
-                    $replyMail->compose_to = implode(', ', array_unique($allRecipients));
-                    $replyMail->compose_cc = $replyMail->cc_address ?? '';
-                } else { // 'reply'
-                    $replyMail->compose_subject = 'Re: ' . $cleanSubj;
-                    $replyMail->compose_to = $replyMail->from_address;
-                    $replyMail->compose_cc = '';
-                }
-
-                // Attach original attachments if mode is forward
-                if ($mode === 'forward') {
+                    $replyMail->compose_bcc = '';
                     $replyMail->forward_attachments = DB::table('email_attachments')
                         ->where('email_id', $replyMail->id)
                         ->get();
+                } elseif ($mode === 'reply_all') {
+                    // Gmail Reply All logic:
+                    // To: Original sender (unless original sender was current user, then primary recipient)
+                    // CC: All other recipients from To and CC (excluding current user and To)
+                    $replyMail->compose_subject = 'Re: ' . $cleanSubj;
+                    $replyMail->compose_bcc = '';
+
+                    if ($userEmail && $fromSender === $userEmail) {
+                        $toPrimary = !empty($toEmails) ? $toEmails[0] : '';
+                    } else {
+                        $toPrimary = $fromSender;
+                    }
+
+                    $allCandidates = array_merge($toEmails, $ccEmails);
+                    $ccList = [];
+                    foreach ($allCandidates as $addr) {
+                        if ($userEmail && $addr === $userEmail) continue;
+                        if ($addr === $toPrimary) continue;
+                        if (!in_array($addr, $ccList)) {
+                            $ccList[] = $addr;
+                        }
+                    }
+
+                    $replyMail->compose_to = $toPrimary;
+                    $replyMail->compose_cc = implode(', ', $ccList);
+                } else { // 'reply'
+                    // Gmail Reply logic: To is original sender (or primary recipient if sent by user), CC/BCC empty
+                    $replyMail->compose_subject = 'Re: ' . $cleanSubj;
+                    if ($userEmail && $fromSender === $userEmail) {
+                        $replyMail->compose_to = !empty($toEmails) ? $toEmails[0] : '';
+                    } else {
+                        $replyMail->compose_to = $fromSender;
+                    }
+                    $replyMail->compose_cc = '';
+                    $replyMail->compose_bcc = '';
                 }
             }
         }
@@ -922,6 +947,22 @@ class EmailController extends Controller
                     'name' => $file->getClientOriginalName(),
                     'mime_type' => $file->getMimeType()
                 ];
+            }
+        }
+
+        // Include existing attachments if forwarding
+        if ($request->has('forward_attachment_ids')) {
+            $fwdIds = (array) $request->input('forward_attachment_ids');
+            $existingAtts = DB::table('email_attachments')->whereIn('id', $fwdIds)->get();
+            foreach ($existingAtts as $att) {
+                if (Storage::exists($att->file_path)) {
+                    $attachments[] = [
+                        'path' => Storage::path($att->file_path),
+                        'relative_path' => $att->file_path,
+                        'name' => $att->filename,
+                        'mime_type' => $att->mime_type
+                    ];
+                }
             }
         }
 
@@ -2195,5 +2236,29 @@ class EmailController extends Controller
             'imap_logs' => $imapLogs,
             'smtp_logs' => $smtpLogs,
         ]);
+    }
+
+    /**
+     * Helper to parse email string/headers into clean email address list.
+     */
+    private function parseEmailAddresses($raw)
+    {
+        if (empty($raw)) return [];
+        $results = [];
+        $parts = explode(',', $raw);
+        foreach ($parts as $part) {
+            $part = trim($part);
+            if (!$part) continue;
+            if (preg_match('/<([^>]+)>/', $part, $matches)) {
+                $email = trim($matches[1]);
+            } else {
+                $email = $part;
+            }
+            $email = strtolower(trim($email));
+            if (!empty($email)) {
+                $results[] = $email;
+            }
+        }
+        return array_values(array_unique($results));
     }
 }
