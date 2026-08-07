@@ -325,9 +325,6 @@ function onEmailCardClick(event, emailId) {
                                 </div>
                             </div>
                             <div class="d-flex align-items-center gap-1">
-                                <button type="button" class="btn btn-xs btn-light border text-dark" onclick="window.replySpecificMessage(${msg.id}, 'reply')" title="Reply to sender"><i class="bi bi-reply-fill me-1 text-primary"></i>Reply</button>
-                                <button type="button" class="btn btn-xs btn-light border text-dark" onclick="window.replySpecificMessage(${msg.id}, 'reply_all')" title="Reply All"><i class="bi bi-reply-all-fill me-1 text-primary"></i>Reply All</button>
-                                <button type="button" class="btn btn-xs btn-light border text-dark" onclick="window.replySpecificMessage(${msg.id}, 'forward')" title="Forward Message"><i class="bi bi-forward-fill me-1 text-primary"></i>Forward</button>
                                 <span class="badge bg-light text-dark border px-2 py-1 ms-1" style="font-size: 0.7rem;" title="Converted to your local timezone"><i class="bi bi-clock me-1 text-primary"></i>${fullDateFormatted}</span>
                             </div>
                         </div>
@@ -701,9 +698,14 @@ function sendQuickReply() {
         btn.innerHTML = `<div class="spinner-border spinner-border-sm me-1"></div> Sending...`;
     }
 
+    let recipientTo = activeEmail.from_address;
+    if (typeof activeAccount !== 'undefined' && activeAccount && activeAccount.email && recipientTo.toLowerCase().includes(activeAccount.email.toLowerCase())) {
+        recipientTo = activeEmail.to_address;
+    }
+
     const formData = new FormData();
-    formData.append('to', activeEmail.from_address);
-    formData.append('subject', 'Re: ' + (activeEmail.subject || ''));
+    formData.append('to', recipientTo);
+    formData.append('subject', 'Re: ' + (activeEmail.subject || '').replace(/^((Re|Fwd|Fw):\s*)+/i, ''));
     formData.append('body_html', content);
     formData.append('in_reply_to', activeEmail.message_id || '');
     formData.append('thread_id', activeEmail.thread_id || '');

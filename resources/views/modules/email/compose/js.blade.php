@@ -239,6 +239,12 @@ function sendEmail() {
         formData.append('attachments[]', f);
     });
 
+    // Add forwarded attachment IDs
+    const fwdAttInputs = document.querySelectorAll('input[name="forward_attachment_ids[]"]');
+    fwdAttInputs.forEach(input => {
+        formData.append('forward_attachment_ids[]', input.value);
+    });
+
     // Show sending state
     const sendBtn = document.querySelector('button[onclick="sendEmail()"]');
     const originalText = sendBtn ? sendBtn.innerHTML : 'Send Message';
@@ -346,10 +352,29 @@ function initChipsInput(inputId, allContacts, canSendToAnyone) {
         originalInput.dispatchEvent(new Event('input', { bubbles: true }));
     }
 
-    function addChip(email, name = '') {
-        email = email.trim();
+    function escapeHtml(str) {
+        if (!str) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
+    function addChip(rawEmail, name = '') {
+        if (!rawEmail) return;
+        
+        let email = rawEmail.trim();
+        let displayObjName = name;
+        const angleMatch = email.match(/^(.*)<([^>]+)>$/);
+        if (angleMatch) {
+            displayObjName = displayObjName || angleMatch[1].replace(/["']/g, '').trim();
+            email = angleMatch[2].trim();
+        }
+
         if (!email) return;
-        if (addedEmails.includes(email)) {
+        if (addedEmails.some(e => e.toLowerCase() === email.toLowerCase())) {
             input.value = '';
             return;
         }
@@ -362,52 +387,41 @@ function initChipsInput(inputId, allContacts, canSendToAnyone) {
             return;
         }
 
-        // Validate against address book if not allowed to send to anyone
-        if (!canSendToAnyone) {
-            const exists = allContacts.some(c => c.email.toLowerCase() === email.toLowerCase());
-            if (!exists) {
-                showToast('danger', `You can only send to contacts in your Address Book. Please add "${email}" to your Address Book first.`);
-                input.value = '';
-                return;
-            }
-        } else {
-            // Auto-save contact for canSendToAnyone users if it's new
-            const exists = allContacts.some(c => c.email.toLowerCase() === email.toLowerCase());
-            if (!exists) {
-                // Save to address book via background post
-                const contactName = name || email.split('@')[0];
-                fetch('/api/email/contacts/store', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-                    },
-                    body: JSON.stringify({
-                        name: contactName,
-                        email: email
-                    })
+        // Auto-save contact for address book autocomplete if new
+        const exists = allContacts.some(c => c.email.toLowerCase() === email.toLowerCase());
+        if (!exists) {
+            const contactName = displayObjName || email.split('@')[0];
+            fetch('/api/email/contacts/store', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                },
+                body: JSON.stringify({
+                    name: contactName,
+                    email: email
                 })
-                .then(r => r.json())
-                .then(res => {
-                    if (res.success) {
-                        allContacts.push({ name: contactName, email: email });
-                    }
-                })
-                .catch(() => {});
-            }
+            })
+            .then(r => r.json())
+            .then(res => {
+                if (res.success) {
+                    allContacts.push({ name: contactName, email: email });
+                }
+            })
+            .catch(() => {});
         }
 
         addedEmails.push(email);
 
         const chip = document.createElement('div');
         chip.className = 'email-chip badge bg-light border text-dark d-inline-flex align-items-center gap-1 p-1 px-2 rounded-pill';
-        const displayLabel = name ? `${name} <${email}>` : email;
+        const displayLabel = displayObjName ? `${displayObjName} <${email}>` : email;
         chip.innerHTML = `
-            <span>${displayLabel}</span>
+            <span>${escapeHtml(displayLabel)}</span>
             <button type="button" class="btn-close ms-1" style="font-size:0.5rem;" onclick="event.stopPropagation();"></button>
         `;
         chip.querySelector('.btn-close').onclick = () => {
-            addedEmails = addedEmails.filter(e => e !== email);
+            addedEmails = addedEmails.filter(e => e.toLowerCase() !== email.toLowerCase());
             chip.remove();
             updateOriginalInput();
         };

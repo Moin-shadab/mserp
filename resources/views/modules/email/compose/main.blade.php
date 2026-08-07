@@ -88,11 +88,24 @@
 </style>
 <div class="container-fluid p-0">
     <div class="row mb-4 align-items-center">
-        <div class="col-md-6">
-            <h4 class="fw-bold mb-1"><i class="bi bi-pencil-square me-2 text-primary"></i>New Message</h4>
-            <p class="text-muted small mb-0">Draft and send emails through SMTP secure sockets.</p>
+        <div class="col-md-7 d-flex align-items-center gap-3">
+            <button class="btn btn-outline-secondary btn-sm px-3 d-flex align-items-center gap-1 shadow-sm" onclick="loadEmailApp(null, 'inbox')" style="border-radius: 6px; font-weight: 500;">
+                <i class="bi bi-arrow-left fs-6"></i> Back to Inbox
+            </button>
+            <div>
+                @if(isset($replyMail) && isset($replyMail->mode) && $replyMail->mode === 'forward')
+                    <h4 class="fw-bold mb-0"><i class="bi bi-forward me-2 text-primary"></i>Forward Message</h4>
+                    <p class="text-muted small mb-0">Forward email thread to new recipients.</p>
+                @elseif(isset($replyMail) && isset($replyMail->mode) && ($replyMail->mode === 'reply' || $replyMail->mode === 'reply_all'))
+                    <h4 class="fw-bold mb-0"><i class="bi bi-reply-fill me-2 text-primary"></i>{{ $replyMail->mode === 'reply_all' ? 'Reply All' : 'Reply to Message' }}</h4>
+                    <p class="text-muted small mb-0">Send a response to conversation thread.</p>
+                @else
+                    <h4 class="fw-bold mb-0"><i class="bi bi-pencil-square me-2 text-primary"></i>New Message</h4>
+                    <p class="text-muted small mb-0">Draft and send emails through SMTP secure sockets.</p>
+                @endif
+            </div>
         </div>
-        <div class="col-md-6 text-md-end mt-3 mt-md-0">
+        <div class="col-md-5 text-md-end mt-3 mt-md-0">
             <div class="d-inline-flex gap-2">
                 <button class="btn btn-light border btn-sm" onclick="saveAsDraft()"><i class="bi bi-file-earmark"></i> Save Draft</button>
                 <button class="btn btn-primary btn-sm px-3" onclick="sendEmail()"><i class="bi bi-send"></i> Send Message</button>
@@ -114,7 +127,7 @@
                         <div class="row mb-3 align-items-center">
                             <label for="c-to" class="col-sm-2 col-form-label small fw-bold text-muted">To:</label>
                             <div class="col-sm-10">
-                                <input type="text" class="form-control form-control-sm" id="c-to" name="to" required placeholder="recipient@domain.com (comma separated)" value="{{ $replyMail ? ($replyMail->compose_to ?? $replyMail->from_address) : '' }}">
+                                <input type="text" class="form-control form-control-sm" id="c-to" name="to" required placeholder="recipient@domain.com (comma separated)" value="{{ $replyMail ? ($replyMail->compose_to ?? '') : '' }}">
                             </div>
                         </div>
 
@@ -125,7 +138,7 @@
                                 <input type="text" class="form-control form-control-sm" id="c-cc" name="cc" placeholder="cc@domain.com" value="{{ $replyMail ? ($replyMail->compose_cc ?? '') : '' }}">
                             </div>
                             <div class="col-sm-5">
-                                <input type="text" class="form-control form-control-sm" id="c-bcc" name="bcc" placeholder="bcc@domain.com">
+                                <input type="text" class="form-control form-control-sm" id="c-bcc" name="bcc" placeholder="bcc@domain.com" value="{{ $replyMail ? ($replyMail->compose_bcc ?? '') : '' }}">
                             </div>
                         </div>
 
@@ -136,6 +149,22 @@
                                 <input type="text" class="form-control form-control-sm" id="c-subject" name="subject" required placeholder="Enter subject line" value="{{ $replyMail ? ($replyMail->compose_subject ?? ('Re: ' . $replyMail->subject)) : '' }}">
                             </div>
                         </div>
+
+                        <!-- Forwarded Attachments (if any) -->
+                        @if(isset($replyMail->forward_attachments) && count($replyMail->forward_attachments) > 0)
+                            <div class="mb-3 p-3 bg-light rounded border">
+                                <label class="small fw-bold text-dark mb-2 d-block"><i class="bi bi-paperclip text-primary me-1"></i> Forwarded Attachment(s):</label>
+                                <div class="d-flex flex-wrap gap-2">
+                                    @foreach($replyMail->forward_attachments as $att)
+                                        <div class="badge bg-white text-dark border d-flex align-items-center gap-2 p-2 shadow-sm">
+                                            <i class="bi bi-file-earmark-text text-primary"></i>
+                                            <span>{{ $att->filename }} ({{ round($att->file_size / 1024, 1) }} KB)</span>
+                                            <input type="hidden" name="forward_attachment_ids[]" value="{{ $att->id }}">
+                                        </div>
+                                    @endforeach
+                                </div>
+                            </div>
+                        @endif
 
                         <!-- Rich Text Editor Area (Quill 2.0 WYSIWYG with Table & Image Resizer) -->
                         <div id="compose-editor-container" class="mb-3 bg-white" style="height: 350px; display: flex; flex-direction: column;">
@@ -148,7 +177,11 @@
                                         <strong>From:</strong> {{ $replyMail->from_name ? ($replyMail->from_name . ' <' . $replyMail->from_address . '>') : $replyMail->from_address }}<br>
                                         <strong>Date:</strong> {{ date('r', strtotime($replyMail->date_sent)) }}<br>
                                         <strong>Subject:</strong> {{ $replyMail->subject }}<br>
-                                        <strong>To:</strong> {{ $replyMail->to_address }}</p>
+                                        <strong>To:</strong> {{ $replyMail->to_address }}
+                                        @if(!empty($replyMail->cc_address))
+                                            <br><strong>Cc:</strong> {{ $replyMail->cc_address }}
+                                        @endif
+                                        </p>
                                     @else
                                         <small class="text-muted">On {{ date('M d, Y H:i', strtotime($replyMail->date_sent)) }}, {{ $replyMail->from_name ?: $replyMail->from_address }} wrote:</small>
                                     @endif

@@ -275,12 +275,6 @@
                         </div>
 
                         <div class="d-flex gap-1">
-                            <button type="button" class="btn btn-xs btn-light border text-dark" onclick="replyCurrentThread('forward')" title="Forward Message">
-                                <i class="bi bi-forward-fill text-primary me-1"></i> Forward
-                            </button>
-                            <button type="button" class="btn btn-xs btn-light border text-dark" onclick="replyCurrentThread('reply_all')" title="Reply All">
-                                <i class="bi bi-reply-all-fill text-primary me-1"></i> Reply All
-                            </button>
                             <button type="button" class="btn btn-sm btn-primary px-3 shadow-sm" onclick="sendQuickReply()" id="quick-reply-send-btn" style="border-radius: 6px; font-weight: 600;">
                                 <i class="bi bi-send-fill me-1"></i> Send Reply
                             </button>
