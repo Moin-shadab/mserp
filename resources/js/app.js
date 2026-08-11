@@ -3,6 +3,9 @@ import * as agGrid from 'ag-grid-community';
 import Quill from 'quill';
 import Chart from 'chart.js/auto';
 
+import './erp-grid.js';
+import './erp-forms.js';
+
 window.bootstrap = bootstrap;
 window.agGrid = agGrid;
 window.Quill = Quill;
