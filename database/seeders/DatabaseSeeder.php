@@ -527,6 +527,23 @@ class DatabaseSeeder extends Seeder
             'updated_at' => now(),
         ]);
 
+        // Page F: Developer Module Studio (SQL to CRUD Generator)
+        $pageDevStudioId = DB::table('pages')->insertGetId([
+            'module_id' => $modOrg,
+            'name' => 'Developer Studio',
+            'slug' => 'developer-module',
+            'token' => 'DEV-100',
+            'title' => 'SQL to AG Grid CRUD Page Generator',
+            'db_table' => 'pages',
+            'primary_key' => 'id',
+            'is_custom' => true,
+            'custom_view' => 'modules/developer',
+            'is_active' => true,
+            'icon' => 'bi-code-slash',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
         // Page F: Notification Routing
         $pageNotifRoutingId = DB::table('pages')->insertGetId([
             'module_id' => $modOrg,
@@ -961,7 +978,7 @@ class DatabaseSeeder extends Seeder
 
         // 8. Seeding Permissions Matrix
         $pages = [
-            $pageCustId, $pageInvId, $pageSalesQuotationId, $pageSalesOrderId, $pagePurchaseOrderId, $pagePurchaseInvoiceId, $pageInvItem, $pageUserConfig, $pagePermMatrixId, 
+            $pageCustId, $pageInvId, $pageSalesQuotationId, $pageSalesOrderId, $pagePurchaseOrderId, $pagePurchaseInvoiceId, $pageInvItem, $pageUserConfig, $pagePermMatrixId, $pageDevStudioId, 
             $pageNotifRoutingId, $pageBroadcastId, $pageInboxId, $pageContactsId, 
             $pageComposeId, $pageReportsId,
             $pageCompId, $pageBranchId, $pageDeptId, $pageVendorId, $pageTaxId, 

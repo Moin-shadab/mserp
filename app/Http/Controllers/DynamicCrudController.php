@@ -262,6 +262,15 @@ class DynamicCrudController extends Controller
                 ));
             }
 
+            if (str_contains($pageConfig->custom_view, 'developer')) {
+                $modules = DB::table('modules')->orderBy('sequence')->get();
+                $pages = DB::table('pages')->where('is_active', true)->get();
+                return view('modules.loader', array_merge(
+                    compact('pageConfig', 'permissions', 'modules', 'pages'),
+                    ['pageDir' => $pageConfig->custom_view]
+                ));
+            }
+
             return view('modules.loader', array_merge(
                 compact('pageConfig', 'permissions'),
                 ['pageDir' => $pageConfig->custom_view]

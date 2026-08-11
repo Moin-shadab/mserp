@@ -215,6 +215,13 @@ Route::middleware(['auth'])->group(function () {
         return response()->json(['success' => true, 'message' => 'Password credentials updated successfully.']);
     });
 
+    // Developer Module Studio Endpoints
+    Route::middleware(['admin'])->group(function () {
+        Route::get('/developer-module', [\App\Http\Controllers\DeveloperModuleController::class, 'index']);
+        Route::post('/api/developer/analyze-query', [\App\Http\Controllers\DeveloperModuleController::class, 'analyzeQuery']);
+        Route::post('/api/developer/generate-page', [\App\Http\Controllers\DeveloperModuleController::class, 'generatePage']);
+    });
+
     // Admin-only Notification Routing Configuration APIs
     Route::middleware(['admin'])->group(function () {
         Route::get('/api/notification-routes/{userId}', function ($userId) {
@@ -1115,3 +1122,8 @@ Route::middleware(['auth'])->group(function () {
         return view('modules.sales_billing.print', compact('invoice', 'company', 'contact', 'items', 'totalInWords', 'docTitle', 'docNoKey', 'docType'));
     });
 });
+
+if (file_exists(__DIR__ . '/generated_modules.php')) {
+    require __DIR__ . '/generated_modules.php';
+}
+
