@@ -104,5 +104,24 @@ class DeveloperModuleTest extends TestCase
             'slug' => 'custom-todos-test',
             'is_custom' => true
         ]);
+
+        $responseView = $this->get('/erp/custom/task-management/custom-todos-test', ['X-Requested-With' => 'XMLHttpRequest']);
+        $responseView->assertStatus(200);
+
+        $responseSlugView = $this->get('/erp/custom-todos-test', ['X-Requested-With' => 'XMLHttpRequest']);
+        $responseSlugView->assertStatus(200);
+
+        $responseData = $this->getJson('/api/custom/task-management/custom-todos-test/data');
+        $responseData->assertStatus(200);
+        $responseData->assertJsonStructure(['data']);
+
+        $responseStore = $this->postJson('/api/custom/task-management/custom-todos-test/store', [
+            'name' => 'New Test User',
+            'email' => 'testuser@mserp.com',
+            'password' => bcrypt('secret'),
+            'role_id' => 1
+        ]);
+        $responseStore->assertStatus(200);
+        $responseStore->assertJson(['success' => true]);
     }
 }

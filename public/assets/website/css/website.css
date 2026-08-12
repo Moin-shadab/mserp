@@ -1,0 +1,641 @@
+/* ==========================================================================
+   MS ERP • NEXT-GEN ENTERPRISE WEBSITE DESIGN SYSTEM
+   Includes 10 Integrated UI Design Paradigms:
+   1. Skeuomorphism   2. Neomorphism   3. Glassmorphism  4. Claymorphism
+   5. Minimalism      6. Maximalism    7. Brutalism      8. Liquid Glass
+   9. Bento Grid      10. Spatial UI
+   ========================================================================== */
+
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap');
+
+:root {
+    /* Core Palette */
+    --primary: #3b82f6;
+    --primary-glow: #60a5fa;
+    --primary-dark: #1d4ed8;
+    --accent-violet: #8b5cf6;
+    --accent-cyan: #06b6d4;
+    --accent-emerald: #10b981;
+    --accent-amber: #f59e0b;
+    --accent-rose: #f43f5e;
+    
+    /* Background Canvas */
+    --bg-dark: #090d16;
+    --bg-card: rgba(15, 23, 42, 0.75);
+    --text-main: #f8fafc;
+    --text-muted: #94a3b8;
+    --border-light: rgba(255, 255, 255, 0.12);
+    
+    /* Glassmorphism Specs */
+    --glass-bg: rgba(255, 255, 255, 0.05);
+    --glass-border: rgba(255, 255, 255, 0.15);
+    --glass-blur: blur(20px);
+    --glass-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
+    
+    /* Transitions */
+    --transition-smooth: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    --transition-spatial: transform 0.15s ease-out;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    background-color: var(--bg-dark);
+    color: var(--text-main);
+    overflow-x: hidden;
+    line-height: 1.6;
+}
+
+/* ==========================================================================
+   PARADIGM 8: LIQUID GLASS CANVAS BACKGROUND
+   ========================================================================== */
+.liquid-glass-bg {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: -2;
+    overflow: hidden;
+    background: radial-gradient(circle at 50% 50%, #0f172a 0%, #070a12 100%);
+}
+
+.liquid-orb {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(90px);
+    opacity: 0.55;
+    animation: floatOrb 18s ease-in-out infinite alternate;
+}
+
+.liquid-orb-1 {
+    top: -10%;
+    left: 15%;
+    width: 550px;
+    height: 550px;
+    background: radial-gradient(circle, #3b82f6 0%, #8b5cf6 100%);
+}
+
+.liquid-orb-2 {
+    bottom: -15%;
+    right: 10%;
+    width: 650px;
+    height: 650px;
+    background: radial-gradient(circle, #06b6d4 0%, #3b82f6 100%);
+    animation-delay: -5s;
+}
+
+.liquid-orb-3 {
+    top: 45%;
+    left: 55%;
+    width: 450px;
+    height: 450px;
+    background: radial-gradient(circle, #ec4899 0%, #8b5cf6 100%);
+    animation-delay: -10s;
+}
+
+@keyframes floatOrb {
+    0% { transform: translate(0, 0) scale(1); }
+    50% { transform: translate(60px, -40px) scale(1.12); }
+    100% { transform: translate(-40px, 50px) scale(0.95); }
+}
+
+/* Navbar: Liquid Glass Header */
+.navbar-glass {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 90%;
+    max-width: 1240px;
+    z-index: 1000;
+    background: rgba(15, 23, 42, 0.65);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 100px;
+    padding: 0.75rem 1.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.35);
+}
+
+.navbar-brand {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    text-decoration: none;
+    color: #fff;
+    font-family: 'Outfit', sans-serif;
+    font-weight: 800;
+    font-size: 1.35rem;
+    letter-spacing: -0.02em;
+}
+
+.navbar-brand img {
+    height: 38px;
+    width: 38px;
+    border-radius: 10px;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+}
+
+.nav-links {
+    display: flex;
+    align-items: center;
+    gap: 2.2rem;
+    list-style: none;
+}
+
+.nav-link-item {
+    color: var(--text-muted);
+    text-decoration: none;
+    font-size: 0.92rem;
+    font-weight: 600;
+    transition: var(--transition-smooth);
+}
+
+.nav-link-item:hover, .nav-link-item.active {
+    color: #fff;
+    text-shadow: 0 0 12px rgba(255, 255, 255, 0.5);
+}
+
+.nav-actions {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+/* ==========================================================================
+   PARADIGM 4: CLAYMORPHISM BUTTON & BADGES
+   ========================================================================== */
+.btn-clay {
+    background: linear-gradient(135deg, #3b82f6, #2563eb);
+    color: white;
+    font-weight: 700;
+    padding: 0.7rem 1.6rem;
+    border-radius: 40px;
+    border: none;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.92rem;
+    box-shadow: inset 2px 2px 4px rgba(255, 255, 255, 0.4), inset -2px -2px 4px rgba(0, 0, 0, 0.2), 8px 12px 24px rgba(37, 99, 235, 0.4);
+    transition: var(--transition-smooth);
+}
+
+.btn-clay:hover {
+    transform: translateY(-2px) scale(1.02);
+    box-shadow: inset 2px 2px 4px rgba(255, 255, 255, 0.6), inset -2px -2px 4px rgba(0, 0, 0, 0.2), 12px 18px 30px rgba(37, 99, 235, 0.5);
+    color: white;
+}
+
+.clay-pill-badge {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.05));
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    backdrop-filter: blur(12px);
+    color: #60a5fa;
+    padding: 0.4rem 1.1rem;
+    border-radius: 50px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    box-shadow: inset 1px 1px 2px rgba(255, 255, 255, 0.3), 4px 8px 16px rgba(0, 0, 0, 0.25);
+}
+
+/* ==========================================================================
+   PARADIGM 7: BRUTALISM TICKER BANNER
+   ========================================================================== */
+.brutalist-ticker-wrapper {
+    background: #f59e0b;
+    color: #000;
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 800;
+    font-size: 0.85rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 0.6rem 0;
+    border-top: 3px solid #000;
+    border-bottom: 3px solid #000;
+    overflow: hidden;
+    white-space: nowrap;
+    position: relative;
+    z-index: 10;
+    margin-top: 100px;
+}
+
+.brutalist-ticker-content {
+    display: inline-block;
+    animation: marqueeTicker 25s linear infinite;
+}
+
+@keyframes marqueeTicker {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+}
+
+/* ==========================================================================
+   HERO SECTION: SPATIAL UI (10) & MAXIMALISM (6)
+   ========================================================================== */
+.hero-section {
+    padding: 6rem 2rem 5rem;
+    max-width: 1280px;
+    margin: 0 auto;
+    text-align: center;
+    position: relative;
+}
+
+.hero-title {
+    font-family: 'Outfit', sans-serif;
+    font-size: clamp(2.5rem, 5vw, 4.5rem);
+    font-weight: 800;
+    line-height: 1.1;
+    letter-spacing: -0.03em;
+    margin: 1.5rem 0 1.2rem;
+    background: linear-gradient(135deg, #ffffff 0%, #cbd5e1 50%, #60a5fa 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.hero-subtitle {
+    font-size: 1.2rem;
+    color: var(--text-muted);
+    max-width: 780px;
+    margin: 0 auto 2.5rem;
+    font-weight: 400;
+}
+
+.hero-cta-group {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1.2rem;
+    flex-wrap: wrap;
+    margin-bottom: 4rem;
+}
+
+/* ==========================================================================
+   PARADIGM 9: BENTO GRID LAYOUT
+   ========================================================================== */
+.bento-section {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 4rem 2rem;
+}
+
+.section-header {
+    text-align: center;
+    margin-bottom: 3.5rem;
+}
+
+.section-title {
+    font-family: 'Outfit', sans-serif;
+    font-size: 2.5rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: #fff;
+    margin-bottom: 0.75rem;
+}
+
+.bento-grid {
+    display: grid;
+    grid-template-columns: repeat(12, 1fr);
+    gap: 1.5rem;
+}
+
+.bento-card {
+    background: rgba(15, 23, 42, 0.65);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 28px;
+    padding: 2.2rem;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+    transition: var(--transition-smooth);
+}
+
+.bento-card:hover {
+    border-color: rgba(96, 165, 250, 0.4);
+    box-shadow: 0 25px 60px rgba(59, 130, 246, 0.25);
+    transform: translateY(-4px);
+}
+
+/* Bento Card Column Spans */
+.col-span-8 { grid-column: span 8; }
+.col-span-4 { grid-column: span 4; }
+.col-span-6 { grid-column: span 6; }
+.col-span-12 { grid-column: span 12; }
+
+@media (max-width: 992px) {
+    .col-span-8, .col-span-4, .col-span-6 { grid-column: span 12; }
+}
+
+.bento-icon-wrapper {
+    height: 52px;
+    width: 52px;
+    border-radius: 16px;
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(139, 92, 246, 0.2));
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    color: #60a5fa;
+    margin-bottom: 1.5rem;
+}
+
+.bento-card-title {
+    font-family: 'Outfit', sans-serif;
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 0.6rem;
+}
+
+.bento-card-desc {
+    color: var(--text-muted);
+    font-size: 0.95rem;
+    margin-bottom: 1.5rem;
+}
+
+/* ==========================================================================
+   INTERACTIVE PARADIGM LIVE SWITCHER WIDGET
+   Exposes 10 Design Styles Live for Visitors:
+   1. Skeuomorphism  2. Neomorphism  3. Glassmorphism  4. Claymorphism
+   5. Minimalism     6. Maximalism   7. Brutalism      8. Liquid Glass
+   9. Bento Grid     10. Spatial UI
+   ========================================================================== */
+.paradigm-switcher-section {
+    max-width: 1280px;
+    margin: 4rem auto;
+    padding: 0 2rem;
+}
+
+.paradigm-tabs {
+    display: flex;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-bottom: 2.5rem;
+}
+
+.paradigm-tab-btn {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: var(--text-muted);
+    padding: 0.6rem 1.2rem;
+    border-radius: 50px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: var(--transition-smooth);
+}
+
+.paradigm-tab-btn:hover, .paradigm-tab-btn.active {
+    background: var(--primary);
+    color: #fff;
+    border-color: var(--primary-glow);
+    box-shadow: 0 0 16px rgba(59, 130, 246, 0.5);
+}
+
+/* Morphing Preview Card Container */
+.paradigm-preview-box {
+    width: 100%;
+    max-width: 850px;
+    margin: 0 auto;
+    padding: 3rem;
+    border-radius: 28px;
+    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* 1️⃣ Skeuomorphism Style */
+.paradigm-preview-box.style-skeuomorphism {
+    background: linear-gradient(180deg, #2b3245 0%, #1c2233 100%);
+    border: 2px solid #3e4861;
+    box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.2), inset 0 -3px 6px rgba(0, 0, 0, 0.6), 0 15px 30px rgba(0,0,0,0.5);
+    color: #e2e8f0;
+}
+.paradigm-preview-box.style-skeuomorphism .demo-btn {
+    background: linear-gradient(180deg, #475569 0%, #1e293b 100%);
+    border: 1px solid #64748b;
+    box-shadow: inset 0 1px 2px rgba(255,255,255,0.4), 0 4px 8px rgba(0,0,0,0.4);
+    color: #fff;
+}
+
+/* 2️⃣ Neomorphism Style */
+.paradigm-preview-box.style-neomorphism {
+    background: #e0e5ec;
+    box-shadow: 9px 9px 16px rgb(163, 177, 198, 0.6), -9px -9px 16px rgba(255, 255, 255, 0.8);
+    color: #2d3748;
+    border: none;
+}
+.paradigm-preview-box.style-neomorphism .demo-title,
+.paradigm-preview-box.style-neomorphism .demo-desc {
+    color: #2d3748;
+}
+.paradigm-preview-box.style-neomorphism .demo-btn {
+    background: #e0e5ec;
+    box-shadow: 6px 6px 12px #a3b1c6, -6px -6px 12px #ffffff;
+    color: #3b82f6;
+    border: none;
+    font-weight: 800;
+}
+
+/* 3️⃣ Glassmorphism Style */
+.paradigm-preview-box.style-glassmorphism {
+    background: rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(25px);
+    -webkit-backdrop-filter: blur(25px);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.35);
+    color: #fff;
+}
+
+/* 4️⃣ Claymorphism Style */
+.paradigm-preview-box.style-claymorphism {
+    background: linear-gradient(135deg, #a78bfa, #8b5cf6);
+    border-radius: 40px;
+    border: none;
+    box-shadow: inset 4px 4px 8px rgba(255, 255, 255, 0.5), inset -4px -4px 8px rgba(0, 0, 0, 0.2), 12px 24px 40px rgba(139, 92, 246, 0.4);
+    color: #fff;
+}
+.paradigm-preview-box.style-claymorphism .demo-btn {
+    background: #fff;
+    color: #7c3aed;
+    border-radius: 30px;
+    box-shadow: inset 2px 2px 4px rgba(255, 255, 255, 0.9), 4px 8px 16px rgba(0, 0, 0, 0.15);
+    font-weight: 800;
+}
+
+/* 5️⃣ Minimalism Style */
+.paradigm-preview-box.style-minimalism {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    box-shadow: none;
+    color: #0f172a;
+}
+.paradigm-preview-box.style-minimalism .demo-title { color: #0f172a; }
+.paradigm-preview-box.style-minimalism .demo-desc { color: #64748b; }
+.paradigm-preview-box.style-minimalism .demo-btn {
+    background: #0f172a;
+    color: #fff;
+    border-radius: 6px;
+}
+
+/* 6️⃣ Maximalism Style */
+.paradigm-preview-box.style-maximalism {
+    background: linear-gradient(135deg, #ff007a, #7928ca, #00dfd8);
+    border: 4px solid #fff;
+    box-shadow: 0 0 50px rgba(255, 0, 122, 0.6);
+    color: #fff;
+}
+.paradigm-preview-box.style-maximalism .demo-btn {
+    background: #ffe600;
+    color: #000;
+    font-weight: 900;
+    border: 3px solid #000;
+    transform: rotate(-2deg);
+}
+
+/* 7️⃣ Brutalism Style */
+.paradigm-preview-box.style-brutalism {
+    background: #ffde59;
+    border: 4px solid #000;
+    box-shadow: 10px 10px 0px #000;
+    color: #000;
+    font-family: 'JetBrains Mono', monospace;
+}
+.paradigm-preview-box.style-brutalism .demo-title { color: #000; font-weight: 900; }
+.paradigm-preview-box.style-brutalism .demo-desc { color: #000; font-weight: 600; }
+.paradigm-preview-box.style-brutalism .demo-btn {
+    background: #ff5757;
+    color: #fff;
+    border: 3px solid #000;
+    box-shadow: 4px 4px 0px #000;
+    font-weight: 900;
+}
+
+/* 8️⃣ Liquid Glass Style */
+.paradigm-preview-box.style-liquidglass {
+    background: radial-gradient(circle at 0% 0%, rgba(56, 189, 248, 0.25), rgba(168, 85, 247, 0.25));
+    backdrop-filter: blur(30px);
+    border: 1.5px solid rgba(255, 255, 255, 0.35);
+    box-shadow: inset 0 0 20px rgba(255, 255, 255, 0.2), 0 30px 60px rgba(0, 0, 0, 0.4);
+    color: #fff;
+}
+
+/* 9️⃣ Bento Grid Style */
+.paradigm-preview-box.style-bentogrid {
+    background: #0f172a;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    color: #fff;
+}
+
+/* 🔟 Spatial UI Style */
+.paradigm-preview-box.style-spatialui {
+    background: rgba(15, 23, 42, 0.85);
+    border: 1px solid rgba(96, 165, 250, 0.4);
+    transform: perspective(1000px) rotateX(8deg) rotateY(-6deg);
+    box-shadow: -20px 30px 60px rgba(0, 0, 0, 0.6), 0 0 40px rgba(59, 130, 246, 0.3);
+    color: #fff;
+}
+
+/* Demo card interior elements */
+.demo-title {
+    font-family: 'Outfit', sans-serif;
+    font-size: 1.75rem;
+    font-weight: 800;
+    margin-bottom: 0.5rem;
+}
+
+.demo-desc {
+    font-size: 0.98rem;
+    margin-bottom: 1.5rem;
+    opacity: 0.9;
+}
+
+.demo-btn {
+    padding: 0.75rem 1.5rem;
+    border-radius: 12px;
+    font-size: 0.92rem;
+    font-weight: 700;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+/* ==========================================================================
+   ROI CALCULATOR & STATS WIDGET
+   ========================================================================== */
+.roi-card {
+    background: rgba(15, 23, 42, 0.7);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 28px;
+    padding: 3rem;
+    max-width: 900px;
+    margin: 4rem auto;
+    box-shadow: 0 25px 50px rgba(0, 0, 0, 0.4);
+}
+
+.slider-range {
+    width: 100%;
+    accent-color: var(--primary);
+    height: 8px;
+    border-radius: 5px;
+    background: rgba(255, 255, 255, 0.15);
+    margin: 1.5rem 0;
+}
+
+/* Footer */
+.website-footer {
+    background: rgba(7, 10, 18, 0.95);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 4rem 2rem 2rem;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+}
+
+.footer-container {
+    max-width: 1240px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 2rem;
+}
+
+.footer-links {
+    display: flex;
+    gap: 1.8rem;
+    list-style: none;
+}
+
+.footer-links a {
+    color: var(--text-muted);
+    text-decoration: none;
+    transition: var(--transition-smooth);
+}
+
+.footer-links a:hover {
+    color: #fff;
+}

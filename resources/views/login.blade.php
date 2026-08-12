@@ -141,9 +141,14 @@
                     <i class="bi bi-magic"></i> Child-Simple ERP System
                 </div>
                 <h2 class="fw-extrabold display-6 text-white mb-3">Enterprise ERP Made Simple</h2>
-                <p class="text-white-50 leading-relaxed mb-4">
+                <p class="text-white-50 leading-relaxed mb-3">
                     Zero complexity, 100% dynamic architecture, and uncompromised enterprise security. Built so simple that anyone can use it instantly.
                 </p>
+                <div class="mb-4">
+                    <a href="{{ url('/website') }}" target="_blank" class="btn btn-outline-light rounded-pill px-3 py-1.5 small fw-bold d-inline-flex align-items-center gap-2" style="background: rgba(255,255,255,0.15); border-color: rgba(255,255,255,0.3); backdrop-filter: blur(8px);">
+                        <i class="bi bi-globe"></i> Visit Official ERP Website <i class="bi bi-arrow-up-right ms-1"></i>
+                    </a>
+                </div>
             </div>
             
             <div class="pt-4 border-top border-white-20">

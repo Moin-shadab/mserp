@@ -14,6 +14,15 @@ use App\Http\Controllers\ChatController;
 
 /*
 |--------------------------------------------------------------------------
+| Public Standalone ERP Website Routes
+|--------------------------------------------------------------------------
+*/
+
+Route::get('/website', [\App\Http\Controllers\WebsiteController::class, 'index']);
+Route::get('/website/{page}', [\App\Http\Controllers\WebsiteController::class, 'show']);
+
+/*
+|--------------------------------------------------------------------------
 | Authentication Routes
 |--------------------------------------------------------------------------
 */
@@ -81,6 +90,11 @@ Route::middleware(['auth'])->group(function () {
     // User context endpoints
     Route::get('/api/user/context', [DashboardController::class, 'getUserContext']);
     Route::post('/api/user/switch-context', [DashboardController::class, 'switchContext']);
+
+    // Custom generated module routes
+    if (file_exists(__DIR__ . '/generated_modules.php')) {
+        require __DIR__ . '/generated_modules.php';
+    }
 
     // Dynamic metadata-driven CRUD core routes
     Route::get('/erp/{slug}', [DynamicCrudController::class, 'index']);
@@ -1122,8 +1136,4 @@ Route::middleware(['auth'])->group(function () {
         return view('modules.sales_billing.print', compact('invoice', 'company', 'contact', 'items', 'totalInWords', 'docTitle', 'docNoKey', 'docType'));
     });
 });
-
-if (file_exists(__DIR__ . '/generated_modules.php')) {
-    require __DIR__ . '/generated_modules.php';
-}
 

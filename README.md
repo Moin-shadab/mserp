@@ -1,274 +1,229 @@
-# 🚀 MS ERP - Enterprise-Grade, 100% Offline-First ERP Platform
+# MS ERP
 
-[![Laravel](https://img.shields.io/badge/Laravel-11.x-FF2D20?style=for-the-badge&logo=laravel&logoColor=white)](https://laravel.com)
-[![PHP](https://img.shields.io/badge/PHP-8.2%20%7C%208.3-777BB4?style=for-the-badge&logo=php&logoColor=white)](https://php.net)
-[![Vite](https://img.shields.io/badge/Vite-6.x-646CFF?style=for-the-badge&logo=vite&logoColor=white)](https://vitejs.dev)
-[![Quill Editor](https://img.shields.io/badge/Quill-2.0-008080?style=for-the-badge&logo=quill&logoColor=white)](https://quilljs.com)
-[![License](https://img.shields.io/badge/License-MIT-green.svg?style=for-the-badge)](LICENSE)
-[![PRs Welcome](https://img.shields.io/badge/PRs-Welcome-brightgreen.svg?style=for-the-badge)](CONTRIBUTING.md)
+A modern ERP platform built with Laravel and PHP 8.4.19 that replaces rigid enterprise software with a dynamic, database-driven architecture.
 
-> **MS ERP** is a modern, modular, database-driven Enterprise Resource Planning (ERP) platform built on **Laravel 11**, **PHP 8.3**, and **Vite**. Engineered for businesses that demand high customization without code clutter, MS ERP stores schemas, navigation, forms, permissions, and workflows as configurable data.
+Instead of hardcoding menus, forms, permissions, reports, and workflows, MS ERP stores them as configurable data. New modules can be introduced without restructuring the application, making it suitable for businesses that continuously evolve.
 
 ---
 
-## ⭐ Key Highlights & Features
+## Why MS ERP?
 
-### 📶 100% Offline-First Architecture
-- **Zero External CDN Dependencies**: No reliance on `fonts.googleapis.com`, `cdn.jsdelivr.net`, or third-party CDNs.
-- **Local NPM Bundling**: Self-contained fonts (Plus Jakarta Sans, Instrument Sans), Bootstrap 5 icons, AG Grid Community, and Quill 2.0 bundled locally via Vite.
-- **Air-Gapped Ready**: Operates seamlessly in intranet environments, isolated cloud VPCs, or offline local servers.
+Most ERP systems eventually become difficult to maintain because every customization requires code changes.
 
----
+MS ERP approaches the problem differently.
 
-### ✉️ Low-Level Socket Custom Email Engine
-- **Multi-Protocol Support**: Custom socket-level implementation for **SMTP**, **IMAP**, and **POP3** with dynamic **STARTTLS** (ports `587`, `143`, `110`, `25`) and **SSL/TLS** (ports `465`, `993`, `995`).
-- **Universal Provider Compatibility**: Works out of the box with `@gmail.com`, `@mserp.in`, cPanel, Plesk, Office365, Zoho Mail, and custom corporate email servers.
-- **⚡ Live Socket Diagnostic Tester**: Test connection health in real time with interactive socket log inspection under **Email > Settings**.
-- **Full Email Client Suite**: Unified Inbox, Sent items, Starred threads, Draft auto-save, HTML templates, corporate signatures, and attachment drag-and-drop.
+* Dynamic module architecture
+* Database-driven navigation
+* Dynamic forms and CRUD generation
+* Role and permission management
+* Hierarchical data visibility
+* Built-in international email client
+* Reporting engine
+* Modular business workflows
+* Laravel-first architecture
+* Enterprise-grade security
 
----
-
-### ✍️ Universal 1-Line Rich Text Editor (`Quill 2.0`)
-- **1-Line Global Initializer**: Instantiate a feature-complete WYSIWYG editor anywhere in your application:
-  ```javascript
-  const editor = window.initErpEditor('#my-editor-id');
-  ```
-- **📊 Native Table Module**: Create tables, insert/delete rows & columns, select cells directly inside Quill 2.0.
-- **🖼️ Interactive Image Resizer & Containment**: Click any image inside the editor to display overlay drag handles, size presets (`25%`, `50%`, `100%`), and alignment buttons (`Left`, `Center`, `Right`).
-- **🛡️ Overflow Protection**: Built-in CSS containment guarantees images and tables never overflow into attachment dropzones or page layout cards.
+The goal is simple: business logic should evolve through configuration whenever possible, not through repetitive code changes.
 
 ---
 
-### 🛡️ Enterprise Security & Granular Access Control (RBAC)
-- **Hierarchical Visibility**: Multi-company, multi-branch, and department-level data isolation.
-- **Supervisory Approval Workflows**: Built-in multi-stage approvals for quotes, invoices, and expense vouchers (e.g., Sales Rep ➔ Sales Head ➔ Finance Head).
-- **Row-Level Security**: Automatic data filtering based on user role and manager-subordinate relationships.
+## Architecture
+
+Everything below is managed dynamically.
+
+* Modules
+* Menus
+* Pages
+* Forms
+* Grid layouts
+* Validation rules
+* Permissions
+* Navigation
+* Reports
+* Email accounts
+* Notification routing
+* User roles
+* Organization hierarchy
+
+The framework acts as an ERP boilerplate that new business modules can plug into with minimal effort.
 
 ---
 
-## ⚡ 1-Command Automated Installation
+## Business Modules
 
-Run the zero-config installer command:
+Current modules include:
+
+* Sales
+* Accounting
+* CRM
+* Customer Management
+* Vendor Management
+* Quotations
+* Orders
+* Invoicing
+* General Ledger
+* Journal Entries
+* Financial Statements
+* Employee Management
+* Company Management
+* Branch Management
+* Department Management
+* Role & Permission Management
+* Dynamic Report Builder
+* Email Client
+* Dashboard & Analytics
+
+The architecture is intentionally modular so additional domains such as Inventory, Procurement, Manufacturing, Payroll, Asset Management, or Help Desk can be integrated without redesigning the platform.
+
+---
+
+## Access Control
+
+MS ERP implements hierarchical permission management instead of simple role checks.
+
+Access can be controlled at:
+
+* Module level
+* Page level
+* Route level
+* CRUD operation level
+* Department level
+* Branch level
+* Company level
+* Employee hierarchy level
+
+Users automatically inherit data visibility according to the organizational structure.
+
+---
+
+## Reporting
+
+Business data can be analyzed through dynamic reporting.
+
+Examples include:
+
+* Sales reports
+* Revenue analysis
+* Customer reports
+* Employee reports
+* Financial reports
+* Ledger reports
+* Trial balance
+* Profit & Loss
+* Balance Sheet
+* Department analytics
+* Custom report builder
+* Excel export
+* PDF export
+
+---
+
+## Email
+
+The built-in communication module supports:
+
+* Multiple SMTP accounts
+* International email providers
+* HTML email templates
+* Queue-based delivery
+* Business notifications
+* Secure authentication
+
+---
+
+## Technology
+
+* Laravel
+* PHP 8.3
+* MySQL / SQLite
+* Blade
+* Bootstrap
+* JavaScript
+* jQuery
+
+---
+
+## Installation
+
+Clone the repository.
 
 ```bash
-php artisan erp:install
+git clone https://github.com/your-username/ms-erp.git
+cd ms-erp
 ```
 
-What `php artisan erp:install` does automatically:
-1. Creates `.env` from `.env.example` if not present.
-2. Generates security key (`php artisan key:generate`).
-3. Prepares SQLite/MySQL database structure.
-4. Executes migrations (`migrate:fresh`).
-5. Seeds initial roles, workflow rules, dummy email accounts, and sample ERP data.
-
----
-
-## 🔑 Default Demo Login Credentials
-
-| Role Title | Email Address | Password | Security Scope / Role |
-| :--- | :--- | :--- | :--- |
-| **🛡️ CFO / Super Admin** | `admin@mserp.com` | `password` | Unrestricted System Access |
-| **📈 North Sales Head** | `north.head@mserp.com` | `password` | Department Supervisor & Approval Rules |
-| **💰 Finance Head** | `accounts.head@mserp.com` | `password` | Accounts Ledger & Billing Workflows |
-| **💼 Sales Representative** | `rep.north1@mserp.com` | `password` | Customer Accounts & Quotes |
-| **📝 Accounts Assistant** | `accounts.member@mserp.com` | `password` | Billing & Receipt Approvals |
-| **👤 General Executive** | `user@mserp.com` | `password` | Workspace Read-Only |
-
----
-
-## 📧 Seeded Template Email Accounts
-
-> 🔒 **Confidentiality Note**: Personal email credentials have been scrubbed. The system includes two clean template accounts out-of-the-box. Simply update your address & password under **Email > Settings**:
-
-| Provider Type | Seeded Dummy Address | SMTP Configuration | IMAP Configuration |
-| :--- | :--- | :--- | :--- |
-| **Gmail Account** | `demo.user@gmail.com` | `smtp.gmail.com:587` (TLS) | `imap.gmail.com:993` (SSL) |
-| **Custom Mail Server** | `user@mserp.in` | `mail.mserp.in:587` (TLS) | `mail.mserp.in:993` (SSL) |
-
----
-
-## 💻 OS-Specific Installation Guide
-
-### Prerequisites
-- **PHP** >= 8.2 (Required extensions: `pdo`, `sqlite3`, `openssl`, `mbstring`, `curl`, `sockets`, `fileinfo`)
-- **Composer** >= 2.x
-- **Node.js** >= 18.x & **NPM** >= 9.x
-
----
-
-### 🍏 macOS Installation (Homebrew)
+Run the automatic installer.
 
 ```bash
-# 1. Install prerequisites via Homebrew
-brew install php composer node
+php artisan erp:setup
+```
 
-# 2. Clone the repository
-git clone https://github.com/Moin-shadab/mserp.in.git
-cd erp
+The installer automatically:
 
-# 3. Install PHP & Node dependencies
-composer install
-npm install
+* creates the environment file
+* generates the application key
+* prepares the database
+* runs migrations
+* seeds all required ERP metadata
+* creates demo users
+* configures permissions
+* prepares the application
 
-# 4. Run 1-command installer
-php artisan erp:install
+Start the server.
 
-# 5. Build frontend assets & start dev server
-npm run build
+```bash
 php artisan serve
 ```
 
----
-
-### 🐧 Linux Installation (Ubuntu / Debian)
-
-```bash
-# 1. Update package list & install PHP 8.3 & Node.js
-sudo apt update
-sudo apt install -y php8.3 php8.3-cli php8.3-curl php8.3-mbstring php8.3-xml php8.3-sqlite3 php8.3-sockets composer nodejs npm
-
-# 2. Clone repository & change directory
-git clone https://github.com/Moin-shadab/mserp.in.git
-cd erp
-
-# 3. Install dependencies
-composer install
-npm install
-
-# 4. Execute installer & build assets
-php artisan erp:install
-npm run build
-
-# 5. Run local development server
-php artisan serve --host=0.0.0.0 --port=8000
-```
-
----
-
-### 🪟 Windows Installation (XAMPP / Laragon / WSL2)
-
-#### Option A: Using Laragon / XAMPP (Native Windows)
-1. Ensure **PHP 8.2+** and **Composer** are installed and added to system `PATH`.
-2. Open PowerShell or Command Prompt as Administrator:
-   ```powershell
-   git clone https://github.com/Moin-shadab/mserp.in.git
-   cd erp
-   composer install
-   npm install
-   php artisan erp:install
-   npm run build
-   php artisan serve
-   ```
-
-#### Option B: Using WSL2 (Ubuntu on Windows)
-```bash
-wsl
-git clone https://github.com/Moin-shadab/mserp.in.git
-cd erp
-composer install && npm install
-php artisan erp:install
-npm run build
-php artisan serve
-```
-
----
-
-## 🛠️ Developer Usage & 1-Line Editor API
-
-### Initializing Rich Text Editors
-Any blade view or JavaScript module can initialize a Quill 2.0 WYSIWYG editor with full Table, Image Resizer, and Video capabilities in **1 single line**:
-
-```javascript
-// 1-line initializer
-const editor = window.initErpEditor('#my-textarea-id', {
-    placeholder: 'Type your content here...'
-});
-
-// Get HTML content
-const html = editor.getHTML();
-
-// Set HTML content
-editor.setHTML('<p>Hello World!</p>');
-
-// Clear editor
-editor.clear();
-```
-
----
-
-## 🧪 Automated Testing & Verification
-
-MS ERP comes with automated unit and feature test suites covering custom socket email clients, STARTTLS upgrades, server lookup handlers, and draft management.
-
-Run the test suite:
-
-```bash
-php artisan test --filter=EmailServiceTest
-```
-
-Expected output:
-```text
-PASS  Tests\Feature\EmailServiceTest
-✓ sync handles basic email fetch and store
-✓ safe decrypt returns plain text on invalid payload
-✓ sync skips disabled live sync accounts
-✓ sync handles imap connection failure gracefully
-✓ get email list returns formatted metadata
-✓ delete contact removes email contact record
-✓ get folder counts returns accurate counts per folder
-✓ bulk action updates folder for multiple emails
-✓ delete label removes label and unlinks emails
-✓ save draft with attachments saves attachments
-✓ thread id fallback groups emails by subject
-✓ lookup server config for custom domain
-✓ store custom email account
-✓ test account connection endpoint
-
-Tests: 14 passed (58 assertions)
-Duration: 0.35s
-```
-
----
-
-## 🗺️ Project Directory Map
+Visit:
 
 ```text
-erp/
-├── app/
-│   ├── Console/Commands/       # Artisan commands (erp:install, email:sync)
-│   ├── Http/Controllers/       # Modular Controllers (EmailController, SalesController)
-│   └── Services/Email/         # Custom Low-Level Sockets (SocketClient, SmtpSocketClient, ImapSocketClient)
-├── database/
-│   ├── migrations/             # Schema definitions
-│   └── seeders/DatabaseSeeder.php # Zero-hardcoding data & dummy email accounts
-├── resources/
-│   ├── css/app.css             # Offline design tokens & Quill containment CSS
-│   ├── js/app.js               # Global 1-line editor initializer (window.initErpEditor)
-│   └── views/                  # Blade templates & module view components
-├── routes/web.php              # ERP routes & API endpoints
-└── tests/Feature/              # Automated PHPUnit / Pest test suites
+http://127.0.0.1:8000
 ```
 
 ---
 
-## 🤝 Contributing
+## Design Principles
 
-Contributions are welcome! If you'd like to report a bug, suggest an enhancement, or contribute a new module:
+MS ERP is built around a few core principles.
 
-1. Fork the Repository.
-2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`).
-3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`).
-4. Push to the Branch (`git push origin feature/AmazingFeature`).
-5. Open a Pull Request.
-
----
-
-## 📄 License
-
-Distributed under the **MIT License**. See `LICENSE` for more information.
+* Configuration over hardcoding
+* Secure by default
+* Modular architecture
+* Clean separation of business logic
+* Scalable enterprise design
+* Developer-friendly extension points
+* Consistent user experience
+* Minimal installation friction
 
 ---
 
-<p align="center">
-  Developed with ❤️ for enterprise efficiency and total data privacy.
-</p>
+## Roadmap
+
+* Inventory Management
+* Purchase Management
+* Warehouse Management
+* Manufacturing
+* Payroll
+* Asset Management
+* REST API
+* Mobile API
+* Webhooks
+* Workflow Automation
+* Multi-language support
+* Multi-currency support
+* Plugin Marketplace
+
+---
+
+## Contributing
+
+Issues, discussions, feature requests, and pull requests are welcome.
+
+If you're building business software on Laravel and have ideas for improving the framework or adding new modules, contributions are encouraged.
+
+---
+
+## License
+
+MIT License.
