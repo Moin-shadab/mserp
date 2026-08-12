@@ -41,6 +41,7 @@
 <script>
 (function() {
     const pageSlug = "custom-todos-test";
+    const moduleSlug = "task-management";
     const primaryKey = "id";
     const gridColumns = [
     {
@@ -75,7 +76,7 @@
     gridInstance = ErpGrid.createGrid({
         id: `grid-${pageSlug}`,
         primaryKey: primaryKey,
-        dataUrl: `/erp/api/${pageSlug}/data`,
+        dataUrl: `/api/custom/${moduleSlug}/${pageSlug}/data`,
         columns: gridColumns,
         wrapText: true,
         autoRowHeight: true,
@@ -116,8 +117,8 @@
         const payload = Object.fromEntries(formData.entries());
 
         const url = activeRecordId 
-            ? `/erp/api/${pageSlug}/update/${activeRecordId}`
-            : `/erp/api/${pageSlug}/store`;
+            ? `/api/custom/${moduleSlug}/${pageSlug}/update/${activeRecordId}`
+            : `/api/custom/${moduleSlug}/${pageSlug}/store`;
 
         fetch(url, {
             method: 'POST',
@@ -142,7 +143,7 @@
 
     window.deleteCustomRecord_custom_todos_test = function(id) {
         if (!confirm('Are you sure you want to delete this record?')) return;
-        fetch(`/erp/api/${pageSlug}/destroy/${id}`, {
+        fetch(`/api/custom/${moduleSlug}/${pageSlug}/destroy/${id}`, {
             method: 'DELETE',
             headers: {
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,

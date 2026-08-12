@@ -322,6 +322,12 @@
                         <input type="text" id="global-search-input" placeholder="Search customer, invoice, item..." onkeypress="handleGlobalSearch(event)">
                     </div>
 
+                    <!-- Public Website Link -->
+                    <a href="{{ url('/website') }}" target="_blank" class="btn btn-sm btn-outline-primary me-3 d-inline-flex align-items-center gap-1" style="font-size:0.8rem; font-weight:600;" title="Visit Public ERP Website">
+                        <i class="bi bi-globe"></i>
+                        <span class="d-none d-md-inline">Public Website</span>
+                    </a>
+
                     <!-- Email Account Switcher -->
                     <div class="me-3">
                         <select class="form-select form-select-sm border" id="email-account-switcher" style="font-size:0.8rem; font-weight:600;" onchange="switchEmailAccount()">

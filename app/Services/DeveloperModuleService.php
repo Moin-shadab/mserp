@@ -216,7 +216,7 @@ class DeveloperModuleService
         }
 
         // Render Blade View Content
-        $bladeContent = $this->buildBladeViewContent($pageName, $pageSlug, $gridSchema, $formSchema, $primaryKey);
+        $bladeContent = $this->buildBladeViewContent($pageName, $pageSlug, $moduleSlug, $gridSchema, $formSchema, $primaryKey);
         File::put($viewFile, $bladeContent);
 
         // Generate Isolated Controller
@@ -225,7 +225,7 @@ class DeveloperModuleService
             File::makeDirectory($controllerDir, 0755, true);
         }
         $controllerFile = "{$controllerDir}/{$controllerClassName}.php";
-        $controllerContent = $this->buildControllerContent($controllerClassName, $dbTable, $primaryKey, $sqlQuery);
+        $controllerContent = $this->buildControllerContent($controllerClassName, $dbTable, $primaryKey, $sqlQuery, $moduleSlug, $pageSlug);
         File::put($controllerFile, $controllerContent);
 
         // Append to routes/generated_modules.php safely
@@ -235,6 +235,7 @@ class DeveloperModuleService
         }
 
         $routeSnippet = "\nRoute::middleware(['auth'])->group(function () {\n";
+        $routeSnippet .= "    Route::get('/erp/{$pageSlug}', [\\App\\Http\\Controllers\\Generated\\{$controllerClassName}::class, 'index']);\n";
         $routeSnippet .= "    Route::get('/erp/custom/{$moduleSlug}/{$pageSlug}', [\\App\\Http\\Controllers\\Generated\\{$controllerClassName}::class, 'index']);\n";
         $routeSnippet .= "    Route::get('/api/custom/{$moduleSlug}/{$pageSlug}/data', [\\App\\Http\\Controllers\\Generated\\{$controllerClassName}::class, 'getData']);\n";
         $routeSnippet .= "    Route::post('/api/custom/{$moduleSlug}/{$pageSlug}/store', [\\App\\Http\\Controllers\\Generated\\{$controllerClassName}::class, 'store']);\n";
@@ -294,7 +295,7 @@ class DeveloperModuleService
     /**
      * Build Blade view file content using ErpGrid and ErpForms.
      */
-    protected function buildBladeViewContent(string $pageName, string $pageSlug, array $gridSchema, array $formSchema, string $primaryKey): string
+    protected function buildBladeViewContent(string $pageName, string $pageSlug, string $moduleSlug, array $gridSchema, array $formSchema, string $primaryKey): string
     {
         $columnsJson = json_encode($gridSchema, JSON_PRETTY_PRINT);
         $formFieldsJson = json_encode($formSchema, JSON_PRETTY_PRINT);
@@ -344,6 +345,7 @@ class DeveloperModuleService
 <script>
 (function() {
     const pageSlug = "{$pageSlug}";
+    const moduleSlug = "{$moduleSlug}";
     const primaryKey = "{$primaryKey}";
     const gridColumns = {$columnsJson};
     const formFields = {$formFieldsJson};
@@ -362,7 +364,7 @@ class DeveloperModuleService
     gridInstance = ErpGrid.createGrid({
         id: `grid-\${pageSlug}`,
         primaryKey: primaryKey,
-        dataUrl: `/erp/api/\${pageSlug}/data`,
+        dataUrl: `/api/custom/\${moduleSlug}/\${pageSlug}/data`,
         columns: gridColumns,
         wrapText: true,
         autoRowHeight: true,
@@ -403,8 +405,8 @@ class DeveloperModuleService
         const payload = Object.fromEntries(formData.entries());
 
         const url = activeRecordId 
-            ? `/erp/api/\${pageSlug}/update/\${activeRecordId}`
-            : `/erp/api/\${pageSlug}/store`;
+            ? `/api/custom/\${moduleSlug}/\${pageSlug}/update/\${activeRecordId}`
+            : `/api/custom/\${moduleSlug}/\${pageSlug}/store`;
 
         fetch(url, {
             method: 'POST',
@@ -429,7 +431,7 @@ class DeveloperModuleService
 
     window.deleteCustomRecord_{$jsSlug} = function(id) {
         if (!confirm('Are you sure you want to delete this record?')) return;
-        fetch(`/erp/api/\${pageSlug}/destroy/\${id}`, {
+        fetch(`/api/custom/\${moduleSlug}/\${pageSlug}/destroy/\${id}`, {
             method: 'DELETE',
             headers: {
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
@@ -451,9 +453,10 @@ BLADE;
     /**
      * Build Controller content for standalone mode.
      */
-    protected function buildControllerContent(string $className, string $table, string $primaryKey, string $sqlQuery): string
+    protected function buildControllerContent(string $className, string $table, string $primaryKey, string $sqlQuery, string $moduleSlug, string $pageSlug): string
     {
         $escapedSql = addslashes($sqlQuery);
+        $customView = "modules/{$moduleSlug}/{$pageSlug}";
         return <<<PHP
 <?php
 
@@ -471,7 +474,13 @@ class {$className} extends Controller
 
     public function index()
     {
-        return view("modules." . request()->route('module') . "." . request()->route('page'));
+        if (!request()->ajax()) {
+            return redirect('/');
+        }
+
+        return view('modules.loader', [
+            'pageDir' => '{$customView}'
+        ]);
     }
 
     public function getData()
@@ -535,6 +544,26 @@ PHP;
                     'can_delete' => true,
                     'can_export' => true,
                     'can_print' => true,
+                    'can_approve' => true,
+                    'can_reject' => true,
+                    'updated_at' => now()
+                ]
+            );
+        }
+
+        if (auth()->check()) {
+            $user = auth()->user();
+            DB::table('user_permissions')->updateOrInsert(
+                ['user_id' => $user->id, 'page_id' => $pageId],
+                [
+                    'can_view' => true,
+                    'can_create' => true,
+                    'can_edit' => true,
+                    'can_delete' => true,
+                    'can_export' => true,
+                    'can_print' => true,
+                    'can_approve' => true,
+                    'can_reject' => true,
                     'updated_at' => now()
                 ]
             );

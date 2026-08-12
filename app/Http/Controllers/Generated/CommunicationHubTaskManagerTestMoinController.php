@@ -14,7 +14,13 @@ class CommunicationHubTaskManagerTestMoinController extends Controller
 
     public function index()
     {
-        return view("modules." . request()->route('module') . "." . request()->route('page'));
+        if (!request()->ajax()) {
+            return redirect('/');
+        }
+
+        return view('modules.loader', [
+            'pageDir' => 'modules/communication-hub/task-manager-test-moin'
+        ]);
     }
 
     public function getData()
