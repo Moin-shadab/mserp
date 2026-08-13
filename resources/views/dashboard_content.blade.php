@@ -1,19 +1,33 @@
 <div class="container-fluid p-0">
-    <div class="row mb-4">
-        <div class="col-12">
-            <h4 class="fw-bold mb-1">Welcome to your Dashboard</h4>
-            <p class="text-muted small">Here is a summary of your enterprise activity and system health.</p>
+    <div class="row mb-4 align-items-center">
+        <div class="col-md-7">
+            <h4 class="fw-bold mb-1 d-flex align-items-center gap-2">
+                Welcome to your Dashboard
+                <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill fs-7 fw-semibold">Interactive</span>
+            </h4>
+            <p class="text-muted small mb-0">Drag & drop any widget card to customize your layout. Drag handle <i class="bi bi-grip-vertical"></i> enabled.</p>
+        </div>
+        <div class="col-md-5 text-md-end mt-2 mt-md-0 d-flex justify-content-md-end align-items-center gap-2">
+            <button class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1" onclick="resetDashboardLayout()" title="Reset to Default Layout">
+                <i class="bi bi-arrow-counterclockwise"></i> Reset Layout
+            </button>
+            <button class="btn btn-sm btn-primary d-inline-flex align-items-center gap-1" onclick="toggleCommandPalette()" title="Press Cmd+K for Command Palette">
+                <i class="bi bi-command"></i> Command Palette <kbd class="bg-white text-dark ms-1 px-1 py-0 rounded" style="font-size:0.7rem;">⌘K</kbd>
+            </button>
         </div>
     </div>
 
-    <!-- KPI Cards Row -->
-    <div class="row mb-4">
+    <!-- KPI Cards Row (Draggable Grid) -->
+    <div class="row mb-4" id="kpi-cards-grid">
         <!-- Sales Card -->
-        <div class="col-md-3">
-            <div class="card p-3 border-0 bg-white shadow-sm h-100 position-relative overflow-hidden" style="transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-3px)'" onmouseout="this.style.transform='none'">
+        <div class="col-md-3 mb-3 mb-md-0 drag-widget" data-widget-id="kpi-sales" draggable="true" ondragstart="handleDragStart(event)" ondragover="handleDragOver(event)" ondrop="handleDrop(event)" ondragend="handleDragEnd(event)">
+            <div class="card p-3 border-0 bg-white shadow-sm h-100 position-relative overflow-hidden cursor-move">
                 <div class="d-flex align-items-center justify-content-between">
                     <div>
-                        <span class="text-muted small fw-semibold">APPROVED SALES</span>
+                        <div class="d-flex align-items-center gap-1">
+                            <i class="bi bi-grip-vertical text-muted drag-handle me-1" style="cursor:grab;" title="Drag to reorder"></i>
+                            <span class="text-muted small fw-semibold">APPROVED SALES</span>
+                        </div>
                         <h3 class="fw-bold mt-1 mb-0">₹{{ number_format($totalSales, 2) }}</h3>
                     </div>
                     <div class="bg-primary-subtle p-3 rounded-3 text-primary">
@@ -27,11 +41,14 @@
         </div>
 
         <!-- Users Card -->
-        <div class="col-md-3">
-            <div class="card p-3 border-0 bg-white shadow-sm h-100 position-relative overflow-hidden" style="transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-3px)'" onmouseout="this.style.transform='none'">
+        <div class="col-md-3 mb-3 mb-md-0 drag-widget" data-widget-id="kpi-users" draggable="true" ondragstart="handleDragStart(event)" ondragover="handleDragOver(event)" ondrop="handleDrop(event)" ondragend="handleDragEnd(event)">
+            <div class="card p-3 border-0 bg-white shadow-sm h-100 position-relative overflow-hidden cursor-move">
                 <div class="d-flex align-items-center justify-content-between">
                     <div>
-                        <span class="text-muted small fw-semibold">ACTIVE USERS</span>
+                        <div class="d-flex align-items-center gap-1">
+                            <i class="bi bi-grip-vertical text-muted drag-handle me-1" style="cursor:grab;" title="Drag to reorder"></i>
+                            <span class="text-muted small fw-semibold">ACTIVE USERS</span>
+                        </div>
                         <h3 class="fw-bold mt-1 mb-0">{{ $usersCount }}</h3>
                     </div>
                     <div class="bg-success-subtle p-3 rounded-3 text-success">
@@ -45,11 +62,14 @@
         </div>
 
         <!-- Pending Workflows Card -->
-        <div class="col-md-3">
-            <div class="card p-3 border-0 bg-white shadow-sm h-100 position-relative overflow-hidden" style="transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-3px)'" onmouseout="this.style.transform='none'">
+        <div class="col-md-3 mb-3 mb-md-0 drag-widget" data-widget-id="kpi-workflows" draggable="true" ondragstart="handleDragStart(event)" ondragover="handleDragOver(event)" ondrop="handleDrop(event)" ondragend="handleDragEnd(event)">
+            <div class="card p-3 border-0 bg-white shadow-sm h-100 position-relative overflow-hidden cursor-move">
                 <div class="d-flex align-items-center justify-content-between">
                     <div>
-                        <span class="text-muted small fw-semibold">PENDING APPROVALS</span>
+                        <div class="d-flex align-items-center gap-1">
+                            <i class="bi bi-grip-vertical text-muted drag-handle me-1" style="cursor:grab;" title="Drag to reorder"></i>
+                            <span class="text-muted small fw-semibold">PENDING APPROVALS</span>
+                        </div>
                         <h3 class="fw-bold mt-1 mb-0">{{ count($myPendingApprovals) }} <span class="text-muted fs-6">/ {{ $pendingWorkflows }}</span></h3>
                     </div>
                     <div class="bg-warning-subtle p-3 rounded-3 text-warning">
@@ -63,11 +83,14 @@
         </div>
 
         <!-- System Audit Log Card -->
-        <div class="col-md-3">
-            <div class="card p-3 border-0 bg-white shadow-sm h-100 position-relative overflow-hidden" style="transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-3px)'" onmouseout="this.style.transform='none'">
+        <div class="col-md-3 mb-3 mb-md-0 drag-widget" data-widget-id="kpi-audits" draggable="true" ondragstart="handleDragStart(event)" ondragover="handleDragOver(event)" ondrop="handleDrop(event)" ondragend="handleDragEnd(event)">
+            <div class="card p-3 border-0 bg-white shadow-sm h-100 position-relative overflow-hidden cursor-move">
                 <div class="d-flex align-items-center justify-content-between">
                     <div>
-                        <span class="text-muted small fw-semibold">SYSTEM AUDIT TRAIL</span>
+                        <div class="d-flex align-items-center gap-1">
+                            <i class="bi bi-grip-vertical text-muted drag-handle me-1" style="cursor:grab;" title="Drag to reorder"></i>
+                            <span class="text-muted small fw-semibold">SYSTEM AUDIT TRAIL</span>
+                        </div>
                         <h3 class="fw-bold mt-1 mb-0">{{ $totalAudits }}</h3>
                     </div>
                     <div class="bg-danger-subtle p-3 rounded-3 text-danger">
@@ -83,11 +106,15 @@
 
     <!-- Active Approvals (Actionable Workflow Center) -->
     @if(!empty($myPendingApprovals))
-    <div class="row mb-4">
-        <div class="col-12">
+    <div class="row mb-4" id="workflow-center-grid">
+        <div class="col-12 drag-widget" data-widget-id="widget-workflow" draggable="true" ondragstart="handleDragStart(event)" ondragover="handleDragOver(event)" ondrop="handleDrop(event)" ondragend="handleDragEnd(event)">
             <div class="card">
-                <div class="card-header bg-white border-bottom-0 py-3">
-                    <h5 class="fw-bold mb-0 text-primary"><i class="bi bi-check2-square me-2"></i>Workflow Approvals Center</h5>
+                <div class="card-header bg-white border-bottom-0 py-3 d-flex justify-content-between align-items-center">
+                    <h5 class="fw-bold mb-0 text-primary d-flex align-items-center gap-2">
+                        <i class="bi bi-grip-vertical text-muted drag-handle" style="cursor:grab;" title="Drag to reorder"></i>
+                        <i class="bi bi-check2-square me-1"></i>Workflow Approvals Center
+                    </h5>
+                    <span class="badge bg-warning text-dark fw-bold">{{ count($myPendingApprovals) }} Action Required</span>
                 </div>
                 <div class="table-responsive p-3 pt-0">
                     <table class="table table-hover align-middle mb-0" style="font-size:0.85rem;">
@@ -125,12 +152,15 @@
     @endif
 
     <!-- Main Charts & Details Grid -->
-    <div class="row mb-4">
+    <div class="row mb-4" id="main-widgets-grid">
         <!-- Sales Chart -->
-        <div class="col-lg-8">
+        <div class="col-lg-8 mb-4 mb-lg-0 drag-widget" data-widget-id="widget-sales-chart" draggable="true" ondragstart="handleDragStart(event)" ondragover="handleDragOver(event)" ondrop="handleDrop(event)" ondragend="handleDragEnd(event)">
             <div class="card h-100">
                 <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
-                    <h5 class="fw-bold mb-0">Monthly Sales Summary</h5>
+                    <h5 class="fw-bold mb-0 d-flex align-items-center gap-2">
+                        <i class="bi bi-grip-vertical text-muted drag-handle" style="cursor:grab;" title="Drag to reorder"></i>
+                        Monthly Sales Summary
+                    </h5>
                     <span class="badge bg-primary-subtle text-primary fw-bold">Live Data</span>
                 </div>
                 <div class="card-body">
@@ -142,10 +172,14 @@
         </div>
 
         <!-- System Diagnostics (Health) -->
-        <div class="col-lg-4">
+        <div class="col-lg-4 drag-widget" data-widget-id="widget-system-health" draggable="true" ondragstart="handleDragStart(event)" ondragover="handleDragOver(event)" ondrop="handleDrop(event)" ondragend="handleDragEnd(event)">
             <div class="card h-100">
-                <div class="card-header bg-white py-3">
-                    <h5 class="fw-bold mb-0">System Diagnostic Health</h5>
+                <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                    <h5 class="fw-bold mb-0 d-flex align-items-center gap-2">
+                        <i class="bi bi-grip-vertical text-muted drag-handle" style="cursor:grab;" title="Drag to reorder"></i>
+                        System Diagnostics
+                    </h5>
+                    <span class="badge bg-success-subtle text-success fw-bold">Healthy</span>
                 </div>
                 <div class="card-body p-0">
                     <div class="list-group list-group-flush" style="font-size:0.85rem;">
@@ -158,26 +192,26 @@
                         </div>
                         <div class="list-group-item py-3">
                             <div class="d-flex justify-content-between align-items-center mb-1">
-                                <h6 class="mb-0 fw-semibold">Host Storage Partition</h6>
-                                <small class="text-muted">{{ $systemHealth['disk_used'] }} of {{ $systemHealth['disk_total'] }} used</small>
+                                <h6 class="mb-0 fw-semibold">Server Storage Disk</h6>
+                                <small class="text-muted">{{ $systemHealth['disk_used'] }} / {{ $systemHealth['disk_total'] }}</small>
                             </div>
                             <div class="progress" style="height: 6px;">
-                                <div class="progress-bar bg-warning" role="progressbar" style="width: {{ $systemHealth['disk_percent'] }}%"></div>
+                                <div class="progress-bar bg-info" role="progressbar" style="width: {{ $systemHealth['disk_percent'] }}%" aria-valuenow="{{ $systemHealth['disk_percent'] }}" aria-valuemin="0" aria-valuemax="100"></div>
                             </div>
                         </div>
                         <div class="list-group-item d-flex justify-content-between align-items-center py-3">
                             <div>
-                                <h6 class="mb-0 fw-semibold">Process Load average</h6>
-                                <small class="text-muted">CPU cycle occupancy</small>
+                                <h6 class="mb-0 fw-semibold">PHP Environment</h6>
+                                <small class="text-muted">PHP Version</small>
                             </div>
-                            <span class="badge bg-info-subtle text-info py-2 px-3 fw-bold">{{ $systemHealth['cpu_load'] }}</span>
+                            <span class="badge bg-light text-dark border py-2 px-3">{{ $systemHealth['php_version'] }}</span>
                         </div>
                         <div class="list-group-item d-flex justify-content-between align-items-center py-3">
                             <div>
-                                <h6 class="mb-0 fw-semibold">Framework Specs</h6>
-                                <small class="text-muted">PHP {{ $systemHealth['php_version'] }}</small>
+                                <h6 class="mb-0 fw-semibold">MySQL Engine Version</h6>
+                                <small class="text-muted">Database Version</small>
                             </div>
-                            <span class="badge bg-secondary py-2 px-3 fw-bold" style="font-size: 0.75rem;">MySQL {{ substr($systemHealth['mysql_version'], 0, 5) }}</span>
+                            <span class="badge bg-light text-dark border py-2 px-3">{{ $systemHealth['mysql_version'] }}</span>
                         </div>
                     </div>
                 </div>
@@ -185,17 +219,21 @@
         </div>
     </div>
 
-    <!-- Audits Row -->
-    <div class="row">
-        <div class="col-12">
-            <div class="card mb-0">
-                <div class="card-header bg-white py-3">
-                    <h5 class="fw-bold mb-0">Recent Enterprise Audit Trails</h5>
+    <!-- Recent Audit Logs Grid -->
+    <div class="row mb-4" id="audit-logs-grid">
+        <div class="col-12 drag-widget" data-widget-id="widget-audit-logs" draggable="true" ondragstart="handleDragStart(event)" ondragover="handleDragOver(event)" ondrop="handleDrop(event)" ondragend="handleDragEnd(event)">
+            <div class="card">
+                <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                    <h5 class="fw-bold mb-0 d-flex align-items-center gap-2">
+                        <i class="bi bi-grip-vertical text-muted drag-handle" style="cursor:grab;" title="Drag to reorder"></i>
+                        System Audit Logs Trail
+                    </h5>
+                    <span class="badge bg-light text-dark border">Recent 10 Actions</span>
                 </div>
-                <div class="table-responsive p-3 pt-0">
-                    <table class="table table-hover align-middle mb-0" style="font-size:0.8rem;">
-                        <thead>
-                            <tr class="table-light">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0" style="font-size:0.85rem;">
+                        <thead class="table-light">
+                            <tr>
                                 <th>User</th>
                                 <th>Action</th>
                                 <th>Target Entity</th>
@@ -227,9 +265,10 @@
     </div>
 </div>
 
-<!-- Dynamic chart loading scripting -->
+<!-- Dynamic Chart & Drag-and-Drop Scripting -->
 <script>
     initSalesChart();
+    restoreDashboardLayout();
 
     function initSalesChart() {
         const canvas = document.getElementById('salesSummaryChart');
@@ -241,8 +280,6 @@
         }
 
         const ctx = canvas.getContext('2d');
-        
-        // Parse Monthly sales object
         const chartData = @json($monthlySales);
         const labels = Object.keys(chartData);
         const values = Object.values(chartData);
@@ -287,6 +324,95 @@
         });
     }
 
+    // HTML5 Drag and Drop Handlers for Dashboard Widgets
+    let dragSrcElement = null;
+
+    function handleDragStart(e) {
+        dragSrcElement = e.currentTarget;
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', e.currentTarget.getAttribute('data-widget-id'));
+        e.currentTarget.classList.add('opacity-50', 'border-dashed');
+    }
+
+    function handleDragOver(e) {
+        if (e.preventDefault) {
+            e.preventDefault();
+        }
+        e.dataTransfer.dropEffect = 'move';
+        return false;
+    }
+
+    function handleDrop(e) {
+        if (e.stopPropagation) {
+            e.stopPropagation();
+        }
+        const targetElement = e.currentTarget;
+
+        if (dragSrcElement && dragSrcElement !== targetElement) {
+            // Check if both elements share the same parent row container
+            if (dragSrcElement.parentNode === targetElement.parentNode) {
+                const parent = dragSrcElement.parentNode;
+                const children = Array.from(parent.children);
+                const srcIdx = children.indexOf(dragSrcElement);
+                const targetIdx = children.indexOf(targetElement);
+
+                if (srcIdx < targetIdx) {
+                    parent.insertBefore(dragSrcElement, targetElement.nextSibling);
+                } else {
+                    parent.insertBefore(dragSrcElement, targetElement);
+                }
+
+                saveDashboardLayout();
+            }
+        }
+        return false;
+    }
+
+    function handleDragEnd(e) {
+        e.currentTarget.classList.remove('opacity-50', 'border-dashed');
+        document.querySelectorAll('.drag-widget').forEach(el => el.classList.remove('opacity-50', 'border-dashed'));
+    }
+
+    function saveDashboardLayout() {
+        const order = [];
+        document.querySelectorAll('.drag-widget').forEach(el => {
+            order.push(el.getAttribute('data-widget-id'));
+        });
+
+        localStorage.setItem('erp_dashboard_layout', JSON.stringify(order));
+
+        fetch('/api/user/save-dashboard-layout', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            },
+            body: JSON.stringify({ layout: order })
+        }).catch(err => console.log('Layout save error:', err));
+    }
+
+    function restoreDashboardLayout() {
+        const saved = localStorage.getItem('erp_dashboard_layout');
+        if (!saved) return;
+
+        try {
+            const order = JSON.parse(saved);
+            order.forEach(widgetId => {
+                const widget = document.querySelector(`[data-widget-id="${widgetId}"]`);
+                if (widget && widget.parentNode) {
+                    widget.parentNode.appendChild(widget);
+                }
+            });
+        } catch(e) {}
+    }
+
+    function resetDashboardLayout() {
+        localStorage.removeItem('erp_dashboard_layout');
+        if (window.showToast) showToast('info', 'Dashboard layout reset to default.');
+        loadDashboard();
+    }
+    window.resetDashboardLayout = resetDashboardLayout;
+
     // Process Inline approvals
     function processApproval(instanceId, action) {
         const comments = document.getElementById('wf-comments-' + instanceId).value;
@@ -306,7 +432,6 @@
         .then(data => {
             if (data.success) {
                 showToast('success', data.message);
-                // Refresh dashboard content
                 loadDashboard();
             } else {
                 showToast('danger', data.error || 'Workflow action failed.');

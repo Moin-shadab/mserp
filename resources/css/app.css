@@ -10,6 +10,7 @@
 @import 'ag-grid-community/styles/ag-grid.css';
 @import 'ag-grid-community/styles/ag-theme-alpine.css';
 @import 'quill/dist/quill.snow.css';
+@import './brutalism.css';
 
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
@@ -43,4 +44,49 @@
     border-top-right-radius: 8px;
     background-color: #f8fafc;
 }
+
+/* Compact Density Layout Overrides */
+[data-density="compact"] {
+    --ag-grid-size: 3px;
+}
+
+[data-density="compact"] body {
+    font-size: 0.82rem;
+}
+
+[data-density="compact"] .card {
+    margin-bottom: 0.85rem !important;
+}
+
+[data-density="compact"] .card-header,
+[data-density="compact"] .card-body,
+[data-density="compact"] .card-footer {
+    padding: 0.6rem 0.85rem !important;
+}
+
+[data-density="compact"] .table td,
+[data-density="compact"] .table th {
+    padding: 0.35rem 0.6rem !important;
+    font-size: 0.8rem !important;
+}
+
+[data-density="compact"] .btn-sm {
+    padding: 0.2rem 0.5rem !important;
+    font-size: 0.75rem !important;
+}
+
+[data-density="compact"] .form-control-sm,
+[data-density="compact"] .form-select-sm {
+    padding: 0.2rem 0.5rem !important;
+    font-size: 0.78rem !important;
+}
+
+[data-density="compact"] #topbar {
+    height: 50px !important;
+}
+
+[data-density="compact"] .sidebar-brand {
+    height: 50px !important;
+}
+
 

@@ -227,37 +227,47 @@ class DashboardController extends Controller
                 return $mod->pages->isNotEmpty(); // Only show modules with pages
             })->values();
 
-        return response()->json([
-            'user' => [
-                'id' => $user->id,
-                'name' => $user->name,
-                'email' => $user->email,
-                'role_id' => $user->role_id,
-                'role_name' => $role->name,
-                'role_slug' => $role->slug,
-                'company_id' => $user->company_id,
-                'company_code' => DB::table('companies')->where('id', $user->company_id)->value('code'),
-                'branch_id' => $user->branch_id,
-                'department_id' => $user->department_id,
-                'is_department_head' => $user->department_id ? DB::table('departments')->where('id', $user->department_id)->where('manager_id', $user->id)->exists() : false,
-                'department_subordinates' => ($user->department_id && DB::table('departments')->where('id', $user->department_id)->where('manager_id', $user->id)->exists())
-                    ? DB::table('users')
-                        ->where('department_id', $user->department_id)
-                        ->where('id', '<>', $user->id)
-                        ->where('is_active', true)
-                        ->select('id', 'name', 'email')
-                        ->get()
-                    : []
-            ],
-            'companies' => $companies,
-            'branches' => $branches,
-            'departments' => $departments,
-            'email_accounts' => $emailAccounts->map(function($acc) {
-                return ['id' => $acc->id, 'name' => $acc->display_name . ' (' . $acc->email . ')'];
-            }),
-            'active_email_account_id' => $activeEmailId,
-            'modules' => $modules
-        ]);
+            $defaultSystemTheme = 'classic';
+            if (Schema::hasTable('system_settings')) {
+                $dbDefault = DB::table('system_settings')->where('key', 'default_theme')->value('value');
+                if ($dbDefault) $defaultSystemTheme = $dbDefault;
+            }
+
+            $userTheme = $user->theme ?: $defaultSystemTheme;
+
+            return response()->json([
+                'user' => [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'role_id' => $user->role_id,
+                    'role_name' => $role->name,
+                    'role_slug' => $role->slug,
+                    'theme' => $userTheme,
+                    'company_id' => $user->company_id,
+                    'company_code' => DB::table('companies')->where('id', $user->company_id)->value('code'),
+                    'branch_id' => $user->branch_id,
+                    'department_id' => $user->department_id,
+                    'is_department_head' => $user->department_id ? DB::table('departments')->where('id', $user->department_id)->where('manager_id', $user->id)->exists() : false,
+                    'department_subordinates' => ($user->department_id && DB::table('departments')->where('id', $user->department_id)->where('manager_id', $user->id)->exists())
+                        ? DB::table('users')
+                            ->where('department_id', $user->department_id)
+                            ->where('id', '<>', $user->id)
+                            ->where('is_active', true)
+                            ->select('id', 'name', 'email')
+                            ->get()
+                        : []
+                ],
+                'companies' => $companies,
+                'branches' => $branches,
+                'departments' => $departments,
+                'email_accounts' => $emailAccounts->map(function($acc) {
+                    return ['id' => $acc->id, 'name' => $acc->display_name . ' (' . $acc->email . ')'];
+                }),
+                'active_email_account_id' => $activeEmailId,
+                'modules' => $modules,
+                'theme' => $userTheme
+            ]);
     }
 
     /**
@@ -276,6 +286,68 @@ class DashboardController extends Controller
             'branch_id' => $branchId,
             'department_id' => $departmentId
         ]);
+
+        return response()->json(['success' => true]);
+    }
+
+    /**
+     * Switch theme in MySQL database table for current user.
+     */
+    public function switchTheme(Request $request)
+    {
+        $user = Auth::user();
+        if (!$user) {
+            return response()->json(['error' => 'Unauthenticated'], 401);
+        }
+
+        $theme = $request->input('theme', 'classic');
+        if (!in_array($theme, ['classic', 'brutalism'])) {
+            $theme = 'classic';
+        }
+
+        // Update MySQL users table
+        DB::table('users')->where('id', $user->id)->update([
+            'theme' => $theme,
+            'updated_at' => now(),
+        ]);
+
+        // If user is super-admin or admin, also update system_settings table as global default
+        $roleSlug = DB::table('roles')->where('id', $user->role_id)->value('slug');
+        if (in_array($roleSlug, ['super-admin', 'admin'])) {
+            if (Schema::hasTable('system_settings')) {
+                DB::table('system_settings')->updateOrInsert(
+                    ['key' => 'default_theme'],
+                    ['value' => $theme, 'updated_at' => now()]
+                );
+            }
+        }
+
+        session(['user_theme' => $theme]);
+
+        return response()->json(['success' => true, 'theme' => $theme]);
+    }
+
+    /**
+     * Save customized dashboard layout to MySQL database.
+     */
+    public function saveDashboardLayout(Request $request)
+    {
+        $user = Auth::user();
+        if (!$user) {
+            return response()->json(['error' => 'Unauthenticated'], 401);
+        }
+
+        $layout = $request->input('layout');
+        if (is_array($layout)) {
+            $layout = json_encode($layout);
+        }
+
+        if (Schema::hasTable('system_settings')) {
+            DB::table('system_settings')->updateOrInsert(
+                ['key' => 'dashboard_layout_user_' . $user->id],
+                ['value' => $layout, 'updated_at' => now()]
+            );
+        }
 
         return response()->json(['success' => true]);
     }
