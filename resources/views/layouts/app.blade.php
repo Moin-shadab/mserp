@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="{{ Auth::user()->theme ?? session('user_theme', 'classic') }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -273,8 +273,8 @@
         <!-- Sidebar -->
         <nav id="sidebar">
             <div class="sidebar-brand d-flex align-items-center gap-2">
-                <img src="{{ asset('images/favicon.png') }}" alt="MS ERP Logo" style="height: 32px; width: 32px; object-fit: contain; border-radius: 6px;">
-                <span class="fw-bold tracking-tight">MS ERP</span>
+                <img src="{{ asset('images/favicon.png') }}" alt="MS ERP Logo" class="brand-logo" style="height: 32px; width: 32px; object-fit: contain;">
+                <span class="fw-bold tracking-tight brand-title">MS ERP</span>
             </div>
             
             <div class="sidebar-menu">
@@ -320,6 +320,14 @@
                     <div class="global-search d-none d-lg-block">
                         <i class="bi bi-search"></i>
                         <input type="text" id="global-search-input" placeholder="Search customer, invoice, item..." onkeypress="handleGlobalSearch(event)">
+                    </div>
+
+                    <!-- Backend MySQL Theme Switcher -->
+                    <div class="me-3">
+                        <select class="form-select form-select-sm border theme-selector-btn" id="theme-switcher" style="font-size:0.8rem; font-weight:700;" onchange="handleThemeSwitch(this.value)" title="Switch Backend System Theme">
+                            <option value="classic">🎨 Theme: Classic</option>
+                            <option value="brutalism">⚡ Theme: Brutalism</option>
+                        </select>
                     </div>
 
                     <!-- Public Website Link -->
@@ -426,6 +434,13 @@
                     currentDepartmentId = data.user.department_id;
                     currentEmailAccountId = data.active_email_account_id;
 
+                    // Set user theme from MySQL table
+                    if (data.user.theme) {
+                        document.documentElement.setAttribute('data-theme', data.user.theme);
+                        const ts = document.getElementById('theme-switcher');
+                        if (ts) ts.value = data.user.theme;
+                    }
+
                     // Load dynamic navigation sidebar items
                     renderDynamicNavigation(data.modules);
 
@@ -433,6 +448,31 @@
                     loadDashboard();
                 });
         }
+
+        function handleThemeSwitch(theme) {
+            document.documentElement.setAttribute('data-theme', theme);
+            const ts = document.getElementById('theme-switcher');
+            if (ts) ts.value = theme;
+
+            fetch('/api/user/switch-theme', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                },
+                body: JSON.stringify({ theme: theme })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success && window.showToast) {
+                    showToast('success', 'Theme updated to ' + (theme === 'brutalism' ? 'Brutalism' : 'Classic'));
+                }
+            })
+            .catch(err => {
+                console.error('Failed to update theme in MySQL:', err);
+            });
+        }
+        window.handleThemeSwitch = handleThemeSwitch;
 
         function populateSelect(id, list, selectedId) {
             const select = document.getElementById(id);
@@ -781,6 +821,9 @@
                 settingsModal = new bootstrap.Modal(document.getElementById('settingsModal'));
             }
             document.getElementById('settings-password-form').reset();
+            const curTheme = document.documentElement.getAttribute('data-theme') || 'classic';
+            const sts = document.getElementById('settings-theme-select');
+            if (sts) sts.value = curTheme;
             settingsModal.show();
         }
         window.showProfile = showProfile;
@@ -867,7 +910,214 @@
             });
         }
         window.acknowledgeBroadcast = acknowledgeBroadcast;
+
+        // ----------------------------------------------------
+        // Universal Command Palette (Cmd + K / Ctrl + K) Engine
+        // ----------------------------------------------------
+        let commandPaletteModal = null;
+        let commandItems = [
+            { title: 'Dashboard', category: 'Navigation', icon: 'bi-speedometer2', action: () => loadDashboard() },
+            { title: 'Sales Invoices', category: 'Sales & Billing', icon: 'bi-receipt', action: () => navigateToSlug('sales-invoices') },
+            { title: 'Sales Orders', category: 'Sales & Billing', icon: 'bi-bag-check', action: () => navigateToSlug('sales-orders') },
+            { title: 'Purchase Orders', category: 'Procurement', icon: 'bi-cart-check', action: () => navigateToSlug('purchase-orders') },
+            { title: 'Inventory Items', category: 'Inventory', icon: 'bi-box-seam', action: () => navigateToSlug('inventory-items') },
+            { title: 'Email Inbox', category: 'Communication', icon: 'bi-envelope', action: () => loadEmailApp(null, 'inbox') },
+            { title: 'Internal Chat', category: 'Communication', icon: 'bi-chat-dots', action: () => loadPage('/erp/internal-chat') },
+            { title: 'User Management', category: 'Admin Panel', icon: 'bi-people', action: () => navigateToSlug('users') },
+            { title: 'Developer Module Studio', category: 'Admin Panel', icon: 'bi-code-slash', action: () => loadPage('/developer-module') },
+            { title: 'Analytics & Reports Builder', category: 'Reports', icon: 'bi-bar-chart', action: () => loadPage('/reports') },
+            { title: 'Switch to Neo-Brutalism Theme', category: 'System Action', icon: 'bi-lightning-charge-fill', action: () => handleThemeSwitch('brutalism') },
+            { title: 'Switch to Classic Light Theme', category: 'System Action', icon: 'bi-palette', action: () => handleThemeSwitch('classic') },
+            { title: 'Toggle Compact Layout Density', category: 'Layout Settings', icon: 'bi-text-paragraph', action: () => toggleLayoutDensity() },
+            { title: 'Toggle Full Screen Mode', category: 'System Action', icon: 'bi-fullscreen', action: () => toggleFullScreen() },
+            { title: 'Open Quick Scratchpad', category: 'Tools', icon: 'bi-pencil-square', action: () => showScratchpadModal() }
+        ];
+
+        document.addEventListener('keydown', function(e) {
+            if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+                e.preventDefault();
+                toggleCommandPalette();
+            }
+        });
+
+        function toggleCommandPalette() {
+            if (!commandPaletteModal) {
+                commandPaletteModal = new bootstrap.Modal(document.getElementById('commandPaletteModal'));
+            }
+            const input = document.getElementById('cmd-palette-input');
+            if (input) input.value = '';
+            renderCommandPaletteResults('');
+            commandPaletteModal.show();
+            setTimeout(() => { if (input) input.focus(); }, 150);
+        }
+        window.toggleCommandPalette = toggleCommandPalette;
+
+        function renderCommandPaletteResults(query) {
+            const container = document.getElementById('cmd-palette-results');
+            if (!container) return;
+
+            const q = query.toLowerCase().trim();
+            const filtered = commandItems.filter(item => 
+                item.title.toLowerCase().includes(q) || item.category.toLowerCase().includes(q)
+            );
+
+            if (filtered.length === 0) {
+                container.innerHTML = `<div class="p-4 text-center text-muted small"><i class="bi bi-search fs-3 d-block mb-1"></i>No matching pages or commands found.</div>`;
+                return;
+            }
+
+            container.innerHTML = filtered.map((item) => {
+                const idx = commandItems.indexOf(item);
+                return `
+                <div class="cmd-item p-2 px-3 border-bottom d-flex align-items-center justify-content-between hover-bg-light" 
+                     style="cursor:pointer;" onclick="executeCmdAction(${idx})">
+                    <div class="d-flex align-items-center gap-2">
+                        <i class="bi ${item.icon} fs-5 text-primary"></i>
+                        <div>
+                            <div class="fw-bold text-dark" style="font-size:0.85rem;">${item.title}</div>
+                            <small class="text-muted" style="font-size:0.75rem;">${item.category}</small>
+                        </div>
+                    </div>
+                    <span class="badge bg-light text-dark border">Run</span>
+                </div>
+            `;}).join('');
+        }
+        window.renderCommandPaletteResults = renderCommandPaletteResults;
+
+        function executeCmdAction(index) {
+            if (commandPaletteModal) commandPaletteModal.hide();
+            if (commandItems[index] && commandItems[index].action) {
+                commandItems[index].action();
+            }
+        }
+        window.executeCmdAction = executeCmdAction;
+
+        // Layout Density Switcher
+        function toggleLayoutDensity() {
+            const current = document.documentElement.getAttribute('data-density') || 'comfortable';
+            const next = current === 'compact' ? 'comfortable' : 'compact';
+            document.documentElement.setAttribute('data-density', next);
+            localStorage.setItem('erp_layout_density', next);
+            if (window.showToast) showToast('info', 'Layout density set to ' + next);
+        }
+        window.toggleLayoutDensity = toggleLayoutDensity;
+
+        // Restore initial density preference
+        const savedDensity = localStorage.getItem('erp_layout_density');
+        if (savedDensity) {
+            document.documentElement.setAttribute('data-density', savedDensity);
+        }
+
+        // Fullscreen Mode Toggle
+        function toggleFullScreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(() => {});
+            } else {
+                if (document.exitFullscreen) document.exitFullscreen();
+            }
+        }
+        window.toggleFullScreen = toggleFullScreen;
+
+        // Quick ERP Scratchpad
+        let scratchpadModal = null;
+        function showScratchpadModal() {
+            if (!scratchpadModal) {
+                scratchpadModal = new bootstrap.Modal(document.getElementById('scratchpadModal'));
+            }
+            const textarea = document.getElementById('scratchpad-notes');
+            if (textarea) textarea.value = localStorage.getItem('erp_scratchpad_notes') || '';
+            scratchpadModal.show();
+        }
+        window.showScratchpadModal = showScratchpadModal;
+
+        function saveScratchpadNotes() {
+            const val = document.getElementById('scratchpad-notes').value;
+            localStorage.setItem('erp_scratchpad_notes', val);
+            if (scratchpadModal) scratchpadModal.hide();
+            if (window.showToast) showToast('success', 'Scratchpad notes saved.');
+        }
+        window.saveScratchpadNotes = saveScratchpadNotes;
     </script>
+
+    <!-- Developer & Power User Floating Action Dock -->
+    <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 1060;">
+        <div class="dropup">
+            <button class="btn btn-primary rounded-circle shadow-lg d-flex align-items-center justify-content-center" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="width: 52px; height: 52px;" title="Developer Power Dock">
+                <i class="bi bi-lightning-charge-fill fs-4"></i>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end shadow-lg border p-2 mb-2" style="min-width: 220px; font-size: 0.85rem;">
+                <li><h6 class="dropdown-header text-uppercase fw-bold" style="font-size:0.7rem; letter-spacing:0.5px;">Power Tools</h6></li>
+                <li>
+                    <a class="dropdown-item d-flex align-items-center gap-2 py-2" href="#" onclick="event.preventDefault(); toggleCommandPalette();">
+                        <i class="bi bi-command text-primary"></i> <span>Command Palette</span> <kbd class="ms-auto bg-light text-dark border px-1" style="font-size:0.65rem;">⌘K</kbd>
+                    </a>
+                </li>
+                <li>
+                    <a class="dropdown-item d-flex align-items-center gap-2 py-2" href="#" onclick="event.preventDefault(); const cur = document.documentElement.getAttribute('data-theme'); handleThemeSwitch(cur === 'brutalism' ? 'classic' : 'brutalism');">
+                        <i class="bi bi-palette text-warning"></i> <span>Quick Theme Switch</span>
+                    </a>
+                </li>
+                <li>
+                    <a class="dropdown-item d-flex align-items-center gap-2 py-2" href="#" onclick="event.preventDefault(); toggleLayoutDensity();">
+                        <i class="bi bi-border-style text-info"></i> <span>Density Mode</span>
+                    </a>
+                </li>
+                <li>
+                    <a class="dropdown-item d-flex align-items-center gap-2 py-2" href="#" onclick="event.preventDefault(); showScratchpadModal();">
+                        <i class="bi bi-pencil-square text-success"></i> <span>Quick Scratchpad</span>
+                    </a>
+                </li>
+                <li><hr class="dropdown-divider"></li>
+                <li>
+                    <a class="dropdown-item d-flex align-items-center gap-2 py-2" href="#" onclick="event.preventDefault(); toggleFullScreen();">
+                        <i class="bi bi-fullscreen text-secondary"></i> <span>Toggle Full Screen</span>
+                    </a>
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Universal Command Palette Modal (Cmd+K) -->
+    <div class="modal fade" id="commandPaletteModal" tabindex="-1" aria-labelledby="commandPaletteModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content border-0 shadow-lg overflow-hidden">
+                <div class="modal-header bg-light border-bottom py-2 px-3">
+                    <div class="d-flex align-items-center gap-2 w-100 me-2">
+                        <i class="bi bi-search text-muted fs-5"></i>
+                        <input type="text" class="form-control border-0 bg-transparent shadow-none" id="cmd-palette-input" placeholder="Type a page, command, or shortcut (e.g. Invoices, Brutalism, Chat)..." oninput="renderCommandPaletteResults(this.value)">
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-0" id="cmd-palette-results" style="max-height: 380px; overflow-y: auto;">
+                    <!-- Rendered dynamically -->
+                </div>
+                <div class="modal-footer bg-light border-top py-2 px-3 d-flex justify-content-between align-items-center" style="font-size:0.75rem;">
+                    <span class="text-muted">Use <kbd class="bg-white text-dark border px-1">↑</kbd> <kbd class="bg-white text-dark border px-1">↓</kbd> to navigate, <kbd class="bg-white text-dark border px-1">↵</kbd> to select</span>
+                    <span class="badge bg-primary-subtle text-primary fw-semibold">MS ERP Command Palette</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Scratchpad Modal -->
+    <div class="modal fade" id="scratchpadModal" tabindex="-1" aria-labelledby="scratchpadModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg">
+                <div class="modal-header py-3 px-4">
+                    <h5 class="fw-bold mb-0" id="scratchpadModalLabel"><i class="bi bi-pencil-square text-success me-2"></i>Quick ERP Scratchpad</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body px-4 py-3">
+                    <p class="text-muted small mb-2">Jot down temporary notes, customer phone numbers, or code snippets. Auto-saved locally.</p>
+                    <textarea id="scratchpad-notes" class="form-control" rows="8" placeholder="Type your quick notes here..."></textarea>
+                </div>
+                <div class="modal-footer py-3 px-4">
+                    <button type="button" class="btn btn-sm btn-light border" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-sm btn-success px-3" onclick="saveScratchpadNotes()"><i class="bi bi-check-lg me-1"></i> Save Notes</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- User Settings Modal (Password Change) -->
     <div class="modal fade" id="settingsModal" tabindex="-1" aria-labelledby="settingsModalLabel" aria-hidden="true">
@@ -879,9 +1129,20 @@
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                     <div class="modal-body px-4 py-0">
+                        <div class="mb-3 p-3 border rounded bg-light">
+                            <label for="settings-theme-select" class="form-label small fw-bold text-dark mb-1 d-flex align-items-center gap-1">
+                                <i class="bi bi-palette text-primary"></i> Application Theme (MySQL Table)
+                            </label>
+                            <select id="settings-theme-select" class="form-select form-select-sm" onchange="handleThemeSwitch(this.value)">
+                                <option value="classic">🎨 Classic Light Theme</option>
+                                <option value="brutalism">⚡ Neo-Brutalism Theme</option>
+                            </select>
+                            <span class="form-text text-muted" style="font-size:0.75rem;">Theme preference is saved directly to your MySQL backend database profile.</span>
+                        </div>
+
                         <div class="mb-3">
                             <label for="settings-current-password" class="form-label small fw-bold text-muted mb-1">Current Password</label>
-                            <input type="password" class="form-control form-control-sm" id="settings-current-password" required placeholder="Enter current password">
+                            <input type="password" class="form-control form-control-sm" id="settings-current-password" placeholder="Enter current password to change password">
                         </div>
                         <div class="mb-3">
                             <label for="settings-new-password" class="form-label small fw-bold text-muted mb-1">New Password</label>

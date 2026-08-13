@@ -1,0 +1,471 @@
+/* ==========================================================================
+   NEO-BRUTALISM THEME DESIGN SYSTEM (Scoped via [data-theme="brutalism"])
+   ========================================================================== */
+
+[data-theme="brutalism"] {
+    --erp-font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    --erp-bg-body: #f4f4f0;
+    --erp-bg-card: #ffffff;
+    --erp-primary: #0052ff;
+    --erp-primary-hover: #0043d1;
+    --erp-primary-light: #ffe600;
+    --erp-text-main: #000000;
+    --erp-text-muted: #2b2b2b;
+    --erp-border: #000000;
+    --erp-sidebar-width: 260px;
+    --erp-sidebar-collapsed-width: 70px;
+    --erp-transition: all 0.15s ease-in-out;
+
+    /* Theme specific design tokens */
+    --brutal-shadow-sm: 2px 2px 0px #000000;
+    --brutal-shadow-md: 4px 4px 0px #000000;
+    --brutal-shadow-lg: 6px 6px 0px #000000;
+    --brutal-shadow-active: 1px 1px 0px #000000;
+
+    --brutal-accent-yellow: #ffe600;
+    --brutal-accent-blue: #0052ff;
+    --brutal-accent-green: #00e699;
+    --brutal-accent-pink: #ff3366;
+    --brutal-accent-cyan: #00d2ff;
+    --brutal-accent-orange: #ff9900;
+}
+
+/* Global Body & Canvas */
+[data-theme="brutalism"] body {
+    background-color: var(--erp-bg-body) !important;
+    color: var(--erp-text-main) !important;
+    font-family: var(--erp-font-family);
+    letter-spacing: -0.01em;
+}
+
+/* Sidebar Neo-Brutalist Styling */
+[data-theme="brutalism"] #sidebar {
+    background-color: #ffffff !important;
+    border-right: 2.5px solid #000000 !important;
+    box-shadow: 3px 0px 0px #000000;
+}
+
+[data-theme="brutalism"] .sidebar-brand {
+    border-bottom: 2.5px solid #000000 !important;
+    background-color: var(--brutal-accent-yellow) !important;
+}
+
+[data-theme="brutalism"] .sidebar-brand img,
+[data-theme="brutalism"] .brand-logo {
+    border: 2px solid #000000 !important;
+    box-shadow: 2.5px 2.5px 0px #000000 !important;
+    background-color: #ffffff !important;
+    border-radius: 6px !important;
+    padding: 2px !important;
+    transition: transform 0.15s ease, box-shadow 0.15s ease !important;
+}
+
+[data-theme="brutalism"] .sidebar-brand img:hover,
+[data-theme="brutalism"] .brand-logo:hover {
+    transform: translate(-1px, -1px) scale(1.06) !important;
+    box-shadow: 3.5px 3.5px 0px #000000 !important;
+}
+
+[data-theme="brutalism"] .sidebar-brand span,
+[data-theme="brutalism"] .brand-title {
+    color: #000000 !important;
+    font-weight: 900 !important;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    background-color: #ffffff;
+    border: 1.5px solid #000000;
+    padding: 0.15rem 0.45rem;
+    border-radius: 4px;
+    box-shadow: 1.5px 1.5px 0px #000000;
+}
+
+[data-theme="brutalism"] .menu-header {
+    color: #000000 !important;
+    font-weight: 900 !important;
+    letter-spacing: 1px;
+    font-size: 0.72rem;
+    padding-bottom: 2px;
+    border-bottom: 2px solid #000000;
+    margin-top: 1.25rem;
+}
+
+[data-theme="brutalism"] .menu-item {
+    color: #000000 !important;
+    font-weight: 700 !important;
+    border: 2px solid transparent;
+    border-radius: 6px;
+    margin-bottom: 0.3rem;
+}
+
+[data-theme="brutalism"] .menu-item:hover {
+    background-color: var(--brutal-accent-cyan) !important;
+    color: #000000 !important;
+    border-color: #000000 !important;
+    box-shadow: var(--brutal-shadow-sm);
+    transform: translate(-1px, -1px);
+}
+
+[data-theme="brutalism"] .menu-item.active {
+    background-color: var(--brutal-accent-yellow) !important;
+    color: #000000 !important;
+    border: 2px solid #000000 !important;
+    box-shadow: var(--brutal-shadow-sm) !important;
+    font-weight: 900 !important;
+}
+
+[data-theme="brutalism"] .menu-item i {
+    color: #000000 !important;
+    font-weight: bold;
+}
+
+/* Topbar Neo-Brutalist Styling */
+[data-theme="brutalism"] #topbar {
+    background-color: #ffffff !important;
+    border-bottom: 2.5px solid #000000 !important;
+    box-shadow: 0px 3px 0px #000000;
+}
+
+[data-theme="brutalism"] .topbar-switches select,
+[data-theme="brutalism"] #email-account-switcher {
+    border: 2px solid #000000 !important;
+    background-color: #ffffff !important;
+    color: #000000 !important;
+    font-weight: 700 !important;
+    border-radius: 6px !important;
+    box-shadow: var(--brutal-shadow-sm) !important;
+}
+
+[data-theme="brutalism"] .topbar-switches select:focus,
+[data-theme="brutalism"] #email-account-switcher:focus {
+    background-color: var(--brutal-accent-yellow) !important;
+    outline: none !important;
+}
+
+[data-theme="brutalism"] .global-search input {
+    border: 2px solid #000000 !important;
+    background-color: #ffffff !important;
+    border-radius: 8px !important;
+    box-shadow: var(--brutal-shadow-sm) !important;
+    font-weight: 600 !important;
+    color: #000000 !important;
+}
+
+[data-theme="brutalism"] .global-search input:focus {
+    background-color: #ffffff !important;
+    box-shadow: 3px 3px 0px #000000 !important;
+}
+
+/* Theme Selector Control Styling */
+[data-theme="brutalism"] .theme-selector-btn {
+    border: 2px solid #000000 !important;
+    background-color: var(--brutal-accent-yellow) !important;
+    color: #000000 !important;
+    font-weight: 800 !important;
+    box-shadow: var(--brutal-shadow-sm) !important;
+    border-radius: 6px !important;
+}
+
+/* Cards & Panels */
+[data-theme="brutalism"] .card {
+    border: 2.5px solid #000000 !important;
+    border-radius: 10px !important;
+    box-shadow: var(--brutal-shadow-md) !important;
+    background-color: #ffffff !important;
+    transition: transform 0.15s ease, box-shadow 0.15s ease !important;
+}
+
+[data-theme="brutalism"] .card:hover {
+    box-shadow: 6px 6px 0px #000000 !important;
+}
+
+[data-theme="brutalism"] .card-header {
+    border-bottom: 2.5px solid #000000 !important;
+    background-color: #ffffff !important;
+    color: #000000 !important;
+    font-weight: 800 !important;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+[data-theme="brutalism"] .card-footer {
+    border-top: 2.5px solid #000000 !important;
+    background-color: #ffffff !important;
+}
+
+/* Buttons */
+[data-theme="brutalism"] .btn {
+    border: 2px solid #000000 !important;
+    border-radius: 6px !important;
+    font-weight: 800 !important;
+    box-shadow: var(--brutal-shadow-sm) !important;
+    transition: transform 0.1s ease, box-shadow 0.1s ease !important;
+    color: #000000;
+}
+
+[data-theme="brutalism"] .btn:hover {
+    transform: translate(-1px, -1px) !important;
+    box-shadow: 4px 4px 0px #000000 !important;
+}
+
+[data-theme="brutalism"] .btn:active {
+    transform: translate(2px, 2px) !important;
+    box-shadow: var(--brutal-shadow-active) !important;
+}
+
+[data-theme="brutalism"] .btn-primary {
+    background-color: var(--brutal-accent-blue) !important;
+    color: #ffffff !important;
+}
+
+[data-theme="brutalism"] .btn-primary:hover {
+    background-color: #0043d1 !important;
+    color: #ffffff !important;
+}
+
+[data-theme="brutalism"] .btn-outline-primary {
+    background-color: #ffffff !important;
+    color: #0052ff !important;
+    border-color: #000000 !important;
+}
+
+[data-theme="brutalism"] .btn-outline-primary:hover {
+    background-color: var(--brutal-accent-yellow) !important;
+    color: #000000 !important;
+}
+
+[data-theme="brutalism"] .btn-secondary,
+[data-theme="brutalism"] .btn-light {
+    background-color: #ffffff !important;
+    color: #000000 !important;
+}
+
+[data-theme="brutalism"] .btn-success {
+    background-color: var(--brutal-accent-green) !important;
+    color: #000000 !important;
+}
+
+[data-theme="brutalism"] .btn-warning {
+    background-color: var(--brutal-accent-yellow) !important;
+    color: #000000 !important;
+}
+
+[data-theme="brutalism"] .btn-danger {
+    background-color: var(--brutal-accent-pink) !important;
+    color: #ffffff !important;
+}
+
+[data-theme="brutalism"] .btn-info {
+    background-color: var(--brutal-accent-cyan) !important;
+    color: #000000 !important;
+}
+
+/* Inputs, Textareas, Selects */
+[data-theme="brutalism"] .form-control,
+[data-theme="brutalism"] .form-select,
+[data-theme="brutalism"] input[type="text"],
+[data-theme="brutalism"] input[type="password"],
+[data-theme="brutalism"] input[type="email"],
+[data-theme="brutalism"] input[type="number"],
+[data-theme="brutalism"] textarea,
+[data-theme="brutalism"] select {
+    border: 2px solid #000000 !important;
+    border-radius: 6px !important;
+    box-shadow: var(--brutal-shadow-sm) !important;
+    font-weight: 600 !important;
+    color: #000000 !important;
+    background-color: #ffffff !important;
+}
+
+[data-theme="brutalism"] .form-control:focus,
+[data-theme="brutalism"] .form-select:focus,
+[data-theme="brutalism"] input:focus,
+[data-theme="brutalism"] textarea:focus,
+[data-theme="brutalism"] select:focus {
+    border-color: #000000 !important;
+    background-color: #ffffff !important;
+    box-shadow: 3px 3px 0px #000000 !important;
+    outline: none !important;
+}
+
+/* Tables */
+[data-theme="brutalism"] .table {
+    border: 2px solid #000000 !important;
+    color: #000000 !important;
+    background-color: #ffffff !important;
+}
+
+[data-theme="brutalism"] .table thead th,
+[data-theme="brutalism"] .table th,
+[data-theme="brutalism"] .table-light {
+    background-color: var(--brutal-accent-yellow) !important;
+    color: #000000 !important;
+    border-bottom: 2.5px solid #000000 !important;
+    border-right: 1px solid #000000 !important;
+    font-weight: 800 !important;
+    text-transform: uppercase;
+    font-size: 0.8rem;
+}
+
+[data-theme="brutalism"] .table td {
+    border-bottom: 1.5px solid #000000 !important;
+    border-right: 1px solid #e2e8f0;
+    color: #000000 !important;
+    font-weight: 500;
+}
+
+[data-theme="brutalism"] .table-hover tbody tr:hover {
+    background-color: #fffde6 !important;
+}
+
+/* Badges */
+[data-theme="brutalism"] .badge {
+    border: 1.5px solid #000000 !important;
+    border-radius: 4px !important;
+    font-weight: 800 !important;
+    text-transform: uppercase;
+    box-shadow: 1px 1px 0px #000000 !important;
+    padding: 0.35em 0.65em !important;
+}
+
+[data-theme="brutalism"] .badge.bg-primary {
+    background-color: var(--brutal-accent-blue) !important;
+    color: #ffffff !important;
+}
+
+[data-theme="brutalism"] .badge.bg-success {
+    background-color: var(--brutal-accent-green) !important;
+    color: #000000 !important;
+}
+
+[data-theme="brutalism"] .badge.bg-warning {
+    background-color: var(--brutal-accent-yellow) !important;
+    color: #000000 !important;
+}
+
+[data-theme="brutalism"] .badge.bg-danger {
+    background-color: var(--brutal-accent-pink) !important;
+    color: #ffffff !important;
+}
+
+[data-theme="brutalism"] .badge.bg-info {
+    background-color: var(--brutal-accent-cyan) !important;
+    color: #000000 !important;
+}
+
+/* Modals */
+[data-theme="brutalism"] .modal-content {
+    border: 3px solid #000000 !important;
+    border-radius: 12px !important;
+    box-shadow: var(--brutal-shadow-lg) !important;
+    background-color: #ffffff !important;
+}
+
+[data-theme="brutalism"] .modal-header {
+    border-bottom: 2.5px solid #000000 !important;
+    background-color: var(--brutal-accent-yellow) !important;
+    color: #000000 !important;
+}
+
+[data-theme="brutalism"] .modal-header .modal-title {
+    font-weight: 900 !important;
+    text-transform: uppercase;
+}
+
+[data-theme="brutalism"] .modal-footer {
+    border-top: 2.5px solid #000000 !important;
+    background-color: #ffffff !important;
+}
+
+/* Dropdowns & Popovers */
+[data-theme="brutalism"] .dropdown-menu {
+    border: 2.5px solid #000000 !important;
+    border-radius: 8px !important;
+    box-shadow: var(--brutal-shadow-md) !important;
+    background-color: #ffffff !important;
+    padding: 0.5rem !important;
+}
+
+[data-theme="brutalism"] .dropdown-item {
+    font-weight: 700 !important;
+    border-radius: 4px !important;
+    color: #000000 !important;
+}
+
+[data-theme="brutalism"] .dropdown-item:hover {
+    background-color: var(--brutal-accent-yellow) !important;
+    color: #000000 !important;
+    border: 1.5px solid #000000;
+}
+
+/* Progress Bars */
+[data-theme="brutalism"] .progress {
+    border: 2px solid #000000 !important;
+    background-color: #ffffff !important;
+    border-radius: 6px !important;
+    box-shadow: var(--brutal-shadow-sm) !important;
+}
+
+[data-theme="brutalism"] .progress-bar {
+    border-right: 2px solid #000000 !important;
+}
+
+/* Alerts */
+[data-theme="brutalism"] .alert {
+    border: 2px solid #000000 !important;
+    border-radius: 8px !important;
+    box-shadow: var(--brutal-shadow-md) !important;
+    font-weight: 700 !important;
+    color: #000000 !important;
+}
+
+[data-theme="brutalism"] .alert-success {
+    background-color: #d1fae5 !important;
+}
+
+[data-theme="brutalism"] .alert-danger {
+    background-color: #ffe4e6 !important;
+}
+
+[data-theme="brutalism"] .alert-warning {
+    background-color: #fef3c7 !important;
+}
+
+[data-theme="brutalism"] .alert-info {
+    background-color: #e0f2fe !important;
+}
+
+/* AG Grid Neo-Brutalist Theme Overrides */
+[data-theme="brutalism"] .ag-theme-alpine {
+    --ag-font-family: var(--erp-font-family);
+    --ag-font-size: 0.85rem;
+    --ag-grid-size: 6px;
+    --ag-header-background-color: var(--brutal-accent-yellow);
+    --ag-header-foreground-color: #000000;
+    --ag-border-color: #000000;
+    --ag-row-hover-color: #fffde6;
+    --ag-selected-row-background-color: #e0f2fe;
+    --ag-input-focus-border-color: #000000;
+    --ag-border-radius: 6px;
+}
+
+[data-theme="brutalism"] .ag-header-cell-text {
+    font-weight: 900 !important;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Quill Editor Neo-Brutalism Overrides */
+[data-theme="brutalism"] .ql-toolbar.ql-snow {
+    border: 2px solid #000000 !important;
+    background-color: var(--brutal-accent-yellow) !important;
+    border-top-left-radius: 8px !important;
+    border-top-right-radius: 8px !important;
+}
+
+[data-theme="brutalism"] .ql-container.ql-snow {
+    border: 2px solid #000000 !important;
+    border-top: none !important;
+    background-color: #ffffff !important;
+    border-bottom-left-radius: 8px !important;
+    border-bottom-right-radius: 8px !important;
+}

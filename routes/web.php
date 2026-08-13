@@ -90,6 +90,8 @@ Route::middleware(['auth'])->group(function () {
     // User context endpoints
     Route::get('/api/user/context', [DashboardController::class, 'getUserContext']);
     Route::post('/api/user/switch-context', [DashboardController::class, 'switchContext']);
+    Route::post('/api/user/switch-theme', [DashboardController::class, 'switchTheme']);
+    Route::post('/api/user/save-dashboard-layout', [DashboardController::class, 'saveDashboardLayout']);
 
     // Custom generated module routes
     if (file_exists(__DIR__ . '/generated_modules.php')) {
