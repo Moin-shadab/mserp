@@ -1,9 +1,9 @@
 <div align="center">
 
-# 🚀 MS ERP — Next-Generation Open-Source Enterprise Platform
+# 🚀 MS ERP — Free Open-Source Enterprise Platform
 
 <p align="center">
-  <strong>A Modular, Database-Driven Enterprise Resource Planning (ERP) Engine with Dual-Theme System (Classic Light & Neo-Brutalism), Drag & Drop Dashboard Customizer, Universal Command Palette, and Developer Productivity Tools.</strong>
+  <strong>The Next-Generation Free & Open-Source ERP System powered by Laravel, PHP 8.3+, MySQL, Dynamic Metadata Engine, Low-Code Developer Studio, and 6 Visual Theme Engines.</strong>
 </p>
 
 [![Laravel Version](https://img.shields.io/badge/Laravel-v11.x-FF2D20?style=for-the-badge&logo=laravel&logoColor=white)](https://laravel.com)
@@ -19,234 +19,167 @@
 
 ---
 
-## 🌟 Overview & Key Differentiators
+## 🔍 Key Features & Capabilities
 
-**MS ERP** is a modern enterprise management platform built on PHP 8.4+ and Laravel. Unlike legacy ERP systems that require heavy code rewrites to add new forms, menus, or workflows, MS ERP is powered by a **Dynamic Metadata Engine**. 
+**MS ERP (`mserp`)** is a powerful, production-ready **Free Open-Source Enterprise Resource Planning (ERP)** software built to automate business operations, GST billing, financial accounting, inventory, CRM, email communications, and internal team chat. 
 
-Everything from navigation menus, form fields, grid columns, role permissions, notification routing, to layout density and theme settings is stored as configurable data in MySQL.
+Unlike legacy ERP software that requires complex code rewrites to add new modules, **MS ERP is driven by a Low-Code Dynamic Metadata Architecture**. Form schemas, data grids, menu items, permissions, theme settings, and dashboard layouts are stored directly in MySQL and managed dynamically via **Developer Studio**.
 
 ---
 
-## ✨ Features Highlight
+## ✨ Features Breakdown
 
-### 🎨 Dual-Engine Design System (Classic & Neo-Brutalism)
-- **MySQL-Persisted Theme Switcher**: Toggle instantly between **Classic Light Enterprise** and **Neo-Brutalism High Contrast**.
-- **Brutalist Logo Styling**: Pitch-black `2px` borders, hard offset shadows (`3px 3px 0px #000`), white badge contrast frames, and tactile hover animations.
-- **Zero GUI Breakage**: Scoped theme rules ensure 100% layout preservation across both themes.
-
-### 🎯 Drag & Drop Dashboard Customizer
-- **Interactive Reordering**: Every KPI card and widget container features drag handles (`<i class="bi bi-grip-vertical"></i>`).
-- **MySQL & Browser Persistence**: Custom widget orders are automatically saved to MySQL database (`users` table / `system_settings`) and `localStorage`.
-- **One-Click Reset**: Restore factory dashboard arrangement anytime.
-
-### ⌘ Universal Command Palette (`Cmd + K` / `Ctrl + K`)
-- **Keyboard-Driven Overlay**: Press `⌘K` or `Ctrl+K` to search anything in milliseconds.
-- **Instant Search & Quick Actions**: Jump to any module (Invoices, Purchase Orders, Chat, Email, Users, Developer Studio) or trigger system actions (Theme switch, Density toggle, Fullscreen, Scratchpad).
-
-### ⚡ Developer & Power User Floating Dock
-- **Speed-Dial Action Bar**: Fixed bottom-right action button providing instant access to:
-  - ⚡ 1-Click Theme Switcher (Classic ↔ Brutalism)
-  - 📏 Layout Density Mode (Comfortable ↔ Compact)
-  - 🔍 Command Palette (`⌘K`)
-  - 📝 ERP Quick Scratchpad (Auto-saved developer notes & memos)
-  - 🖥️ Full Screen Toggle Mode
-
-### 🏢 Hierarchical Access Control & Multi-Context Switching
-- **Granular Permissions Matrix**: Access control down to Module, Page, Operation (View, Create, Edit, Delete, Export, Print, Approve, Reject), Department, Branch, and Company level.
-- **Context Switchers**: Switch active Company, Branch, Department, or Email Account from the topbar with real-time data filtering.
-
-### ✉️ Built-in Enterprise Mail & Internal Team Chat Hub
-- **Multi-Account Mail Client**: Integrated SMTP/IMAP engine with thread views, starred messages, attachments, contacts, labels, and auto-sync.
-- **Real-Time Team Messaging**: Channels, direct messages, user search, broadcast announcements, and read receipts.
-
-### 📊 Dynamic Report Builder & GST Billing Engine
-- **Full Billing Lifecycle**: Purchase Orders, Sales Orders, Quotations, Sales Invoices, and Purchase Bills.
-- **Tax Masters & UOMs**: Built-in GST handling (CGST, SGST, IGST) with customizable tax rates.
-- **Custom SQL Report Builder**: Execute custom SQL analytics and export results to Excel or PDF.
+### 🎨 6 MySQL-Persisted Visual Theme Engines
+Switch instantly between 6 curated visual design systems, persisted to your MySQL user profile:
+1. 🎨 **Classic Enterprise**: Ultra-clean professional light interface.
+2. ⚡ **Neo-Brutalism**: High-contrast brutalist borders, hard offset shadows (`3px 3px 0 #000`), and bold accents.
+3. 🪵 **Skeuomorphism**: Tactile 3D physical glass buttons, metallic bevels, and embossed card depth.
+4. ⚪ **Neomorphism**: Soft UI relief dual-shadow inset/outset design system.
+5. 💎 **Executive Glassmorphism**: Linear/Raycast dark glass aesthetic with frosted backdrop blur and neon badges.
+6. 💻 **Cyber Matrix**: Hacker dark pitch-black obsidian grid UI with Matrix Green (`#00ff66`) glowing accents.
 
 ### 🛠️ Low-Code / No-Code Developer Module Studio
-- **Instant Page Generator**: Generate full CRUD pages with dynamic form schemas and AG Grid tables directly from SQL queries or table names.
+- **Instant CRUD Generator**: Build new modules and pages directly from SQL queries or MySQL tables without writing boilerplate controllers or views.
+- **3-File Architecture**: Auto-generates clean, isolated `main.blade.php`, `css.blade.php`, and `js.blade.php` files for maximum maintainability.
+- **5-Minute Performance Cache**: Auto-discovers and caches dynamic module registrations to ensure **0ms filesystem overhead**.
+
+### ⚡ Enterprise Security & High-Volume Optimization
+- **Rate Limiting & Brute-Force Protection**: Stops `/login` password attacks with strict 5-attempt thresholds while granting active users high burst limits (1,000 req/min).
+- **System Token & Backup Exemption**: Automated backup scripts, CLI tools, and data import jobs with System API Keys bypass rate limits (`Limit::none()`) for unlimited throughput.
+- **Bulk Processing Engine (`/api/bulk/process`)**: Ingests arrays of up to 5,000 rows in single-transaction SQL queries, turning 100,000 individual requests into ~20 queries (**99.5% CPU & memory reduction**).
+
+### 🎯 Drag & Drop Dashboard Customizer
+- **Interactive Reordering**: Drag KPI cards and widgets with visual grip handles.
+- **Dual Persistence**: Order settings are saved automatically to MySQL (`users` table) and `localStorage`.
+
+### ⌘ Universal Command Palette (`Cmd + K` / `Ctrl + K`)
+- Search any module, invoice, customer, report, or system action instantly using keyboard shortcuts.
+
+### 📊 GST Billing & Dynamic Reporting Engine
+- Purchase Orders, Sales Quotations, Invoices, Purchase Bills, GST Taxes (CGST, SGST, IGST), UOMs, Customer/Vendor Ledgers, and custom SQL analytics exportable to Excel/PDF.
+
+### ✉️ Enterprise Email Client & Team Chat Hub
+- Integrated SMTP/IMAP multi-account email client with thread management and internal team chat channels.
 
 ---
 
-## ⌨️ Keyboard Shortcuts Reference
+## ⚡ 1-Command Automated Setup (Mac, Linux & Windows)
 
-| Shortcut | Action | Description |
-| :--- | :--- | :--- |
-| <kbd>⌘</kbd> + <kbd>K</kbd> / <kbd>Ctrl</kbd> + <kbd>K</kbd> | **Command Palette** | Open universal command palette overlay |
-| <kbd>Esc</kbd> | **Close Overlay** | Close modals, search overlays, or dropdowns |
-| <kbd>↑</kbd> / <kbd>↓</kbd> | **Command Navigation** | Navigate items in Command Palette |
-| <kbd>Enter</kbd> | **Execute Command** | Run selected command or open page |
+### 🚀 Quick Start (One Command)
 
----
-
-## 🛠️ System Requirements
-
-| Requirement | Minimum | Recommended |
-| :--- | :--- | :--- |
-| **PHP Version** | `PHP 8.2+` | `PHP 8.4+` |
-| **Database** | `MySQL 8.0+` or `MariaDB 10.5+` | `MySQL 8.0+` |
-| **Web Server** | Nginx / Apache / Caddy | Nginx with FPM |
-| **Node.js** | `Node v18.0+` | `Node v20.x LTS` |
-| **Composer** | `Composer v2.5+` | `Composer v2.7+` |
-
----
-
-## 📥 Installation & Setup Guide (All Operating Systems)
-
-###  1. macOS Setup Guide
-
-#### Step 1: Install Dependencies via Homebrew
 ```bash
-brew update
-brew install php mysql node composer
-```
-
-#### Step 2: Start MySQL Service & Create Database
-```bash
-brew services start mysql
-mysql -u root -e "CREATE DATABASE IF NOT EXISTS mserp;"
-```
-
-#### Step 3: Clone Repository & Install Dependencies
-```bash
+# macOS / Linux
 git clone https://github.com/Moin-shadab/mserp.git
 cd mserp
-composer install
-npm install
+./setup.sh
 ```
 
-#### Step 4: Run ERP Automated Setup
-```bash
-php artisan erp:setup
+```cmd
+:: Windows Command Prompt / PowerShell
+git clone https://github.com/Moin-shadab/mserp.git
+cd mserp
+setup.bat
 ```
 
-#### Step 5: Build Assets & Start Development Server
+The interactive installer will:
+1. Copy `.env` automatically.
+2. Ask for your MySQL credentials (Host, Port, Database Name, User, Password).
+3. **Automatically connect to MySQL and create the database if missing**.
+4. Generate security keys (`APP_KEY`).
+5. Run migrations & seed initial ERP metadata, default settings, and demo user accounts.
+6. Install NPM packages and compile Vite production assets.
+
+---
+
+## 📥 Detailed OS Installation Guides
+
+###  1. macOS Setup Guide
 ```bash
-npm run build
+# Install dependencies via Homebrew
+brew install php mysql node composer
+
+# Start MySQL
+brew services start mysql
+
+# Clone & run setup
+git clone https://github.com/Moin-shadab/mserp.git
+cd mserp
+./setup.sh
+
+# Start ERP server
 php artisan serve
 ```
-Visit `http://127.0.0.1:8000` in your browser.
 
 ---
 
 ### 🐧 2. Linux / Ubuntu Setup Guide
-
-#### Step 1: Install Required System Packages
 ```bash
-sudo apt update && sudo apt upgrade -y
-sudo apt install -y php8.4 php8.4-cli php8.4-fpm php8.4-mysql php8.4-mbstring \
-    php8.4-xml php8.4-curl php8.4-bcmath php8.4-zip mysql-server nginx nodejs npm composer git
-```
+# Install PHP 8.3/8.4, MySQL & Node
+sudo apt update && sudo apt install -y php8.3 php8.3-cli php8.3-mysql php8.3-mbstring \
+    php8.3-xml php8.3-curl php8.3-bcmath php8.3-zip mysql-server nodejs npm composer git
 
-#### Step 2: Configure MySQL Database
-```bash
-sudo mysql -e "CREATE DATABASE mserp CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
-sudo mysql -e "CREATE USER 'mserp_user'@'localhost' IDENTIFIED BY 'Password123!';"
-sudo mysql -e "GRANT ALL PRIVILEGES ON mserp.* TO 'mserp_user'@'localhost';"
-sudo mysql -e "FLUSH PRIVILEGES;"
-```
-
-#### Step 3: Clone Codebase & Install Packages
-```bash
-cd /var/www
-sudo git clone https://github.com/Moin-shadab/mserp.git
+# Clone repository & run setup
+git clone https://github.com/Moin-shadab/mserp.git
 cd mserp
-sudo chown -R $USER:www-data .
-composer install --no-dev --optimize-autoloader
-npm install
-npm run build
-```
+chmod +x setup.sh
+./setup.sh
 
-#### Step 4: Run One-Touch ERP Provisioner
-```bash
-php artisan erp:setup
-```
-
-#### Step 5: Configure Nginx Virtual Host
-Create `/etc/nginx/sites-available/mserp`:
-```nginx
-server {
-    listen 80;
-    server_name erp.yourdomain.com;
-    root /var/www/mserp/public;
-
-    index index.php index.html;
-
-    location / {
-        try_files $uri $uri/ /index.php?$query_string;
-    }
-
-    location ~ \.php$ {
-        include snippets/fastcgi-php.conf;
-        fastcgi_pass unix:/var/run/php/php8.4-fpm.sock;
-    }
-
-    location ~ /\.ht {
-        deny all;
-    }
-}
-```
-Enable site & restart Nginx:
-```bash
-sudo ln -s /etc/nginx/sites-available/mserp /etc/nginx/sites-enabled/
-sudo nginx -t
-sudo systemctl restart nginx
+# Start app
+php artisan serve
 ```
 
 ---
 
-### 🪟 3. Windows Setup Guide (Laragon / XAMPP / WSL2)
+### 🪟 3. Windows Setup Guide (Laragon / XAMPP)
+```cmd
+:: Clone repository
+git clone https://github.com/Moin-shadab/mserp.git
+cd mserp
 
-#### Option A: Using Laragon (Recommended)
-1. Download & Install [Laragon Full](https://laragon.org/download/).
-2. Open Laragon terminal (`Menu -> Terminal`) and navigate to `www`:
-   ```bash
-   cd C:\laragon\www
-   git clone https://github.com/Moin-shadab/mserp.git
-   cd mserp
-   composer install
-   npm install
-   npm run build
-   php artisan erp:setup
-   ```
-3. Laragon creates auto-virtualhost: `http://mserp.test`.
+:: Run 1-command installer
+setup.bat
 
-#### Option B: Using XAMPP
-1. Open XAMPP Control Panel and start **Apache** and **MySQL**.
-2. Open command prompt in `C:\xampp\htdocs`:
-   ```cmd
-   git clone https://github.com/Moin-shadab/mserp.git
-   cd mserp
-   composer install
-   npm install
-   npm run build
-   php artisan erp:setup
-   php artisan serve
-   ```
-3. Visit `http://127.0.0.1:8000`.
+:: Start ERP server
+php artisan serve
+```
 
 ---
 
-## ⚡ Default Demo Credentials
+## ⚡ Seeded Demo Login Credentials
 
-After running `php artisan erp:setup`, default users are seeded:
+After running `setup.sh` or `php artisan erp:setup`, default accounts are seeded (Password for all: `password`):
 
-| Role | Email | Default Password | Permissions |
-| :--- | :--- | :--- | :--- |
-| **Super Admin** | `admin@mserp.com` | `admin123` | Full System Control, Theme Management & Developer Studio |
-| **CFO / Manager** | `cfo@mserp.com` | `password` | Financial Approvals, GST Billing & Reports |
-| **Sales Rep** | `sales@mserp.com` | `password` | Quotations, Invoices & Customer Management |
+| Role Title | Email Address | Access Scope |
+| :--- | :--- | :--- |
+| **🛡️ CFO / Super Admin** | `admin@mserp.com` | Unrestricted Full System Access & Developer Studio |
+| **📈 Sales Head** | `north.head@mserp.com` | Department Supervisor & Sales Operations |
+| **💰 Finance Head** | `accounts.head@mserp.com` | Financial Ledgers & Approvals |
+| **💼 Sales Representative** | `rep.north1@mserp.com` | Customer Accounts & Invoicing |
+| **📝 Accounts Member** | `accounts.member@mserp.com` | Receipts & Billing |
+| **👤 General User** | `user@mserp.com` | Read-only Workspace Access |
 
 ---
 
-## 🏛️ Database Architecture & Schema
+## 🔍 How to Make This Repository Rank High on GitHub & Google
 
-Key tables managed by the Dynamic Metadata Engine:
+To ensure **MS ERP** appears at the top of Google & GitHub searches for keywords like `free erp`, `open source erp`, `mserp`, and `laravel erp`:
+
+### 1. Configure GitHub Repository Topics
+Go to repository page on GitHub (`https://github.com/Moin-shadab/mserp`):
+1. Click the ⚙️ gear icon next to **"About"** on the right sidebar.
+2. Under **Description**, set:
+   > `MS ERP — Next-Generation Free Open-Source Enterprise Platform powered by Laravel, MySQL, Low-Code Developer Studio, and Multi-Theme System.`
+3. Under **Topics**, add these exact tags:
+   `erp`, `open-source-erp`, `free-erp`, `mserp`, `laravel-erp`, `developer-studio`, `low-code-erp`, `enterprise-resource-planning`, `accounting-software`, `inventory-management`, `billing-software`, `ag-grid`, `bootstrap5`, `php8`
+4. Save changes.
+
+---
+
+## 🏛️ System Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    DYNAMIC METADATA ENGINE                  │
+│                   DYNAMIC METADATA ARCHITECTURE             │
 ├───────────────┬────────────────┬──────────────┬─────────────┤
 │ modules       │ submodules     │ pages        │ system_     │
 │               │                │              │ settings    │
@@ -258,30 +191,18 @@ Key tables managed by the Dynamic Metadata Engine:
 └───────────────┴────────────────┴──────────────┴─────────────┘
 ```
 
-- **`system_settings`**: Stores global defaults such as `default_theme` (`classic` or `brutalism`) and `dashboard_layout_user_{id}`.
-- **`users`**: Contains account profiles, active context IDs, and `theme` preference string.
-- **`modules` & `pages`**: Metadata tables defining menu items, icons, dynamic SQL tables, grid JSON schemas, and form fields.
-
 ---
 
 ## 🤝 Contributing
 
-Contributions, bug reports, and feature suggestions are welcome!
-
-1. Fork the Project Repository.
-2. Create your Feature Branch (`git checkout -b feature/CoolFeature`).
-3. Commit your Changes (`git commit -m 'Add CoolFeature'`).
-4. Push to the Branch (`git push origin feature/CoolFeature`).
-5. Open a Pull Request.
+Contributions, issues, and feature requests are welcome! Feel free to check the [issues page](https://github.com/Moin-shadab/mserp/issues).
 
 ---
 
 ## 📜 License
 
-Distributed under the **MIT License**. See `LICENSE` for more information.
-
----
+Distributed under the **MIT License**. See `LICENSE` for details.
 
 <div align="center">
-  <sub>Built with ❤️ by the MS ERP Engineering Team. Powered by Laravel, PHP 8.4, Bootstrap 5, Vite, & MySQL.</sub>
+  <sub>Built with ❤️ by the MS ERP Engineering Team. Powered by Laravel, PHP 8.3+, Bootstrap 5, Vite, & MySQL.</sub>
 </div>

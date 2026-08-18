@@ -1,0 +1,161 @@
+/* ==========================================================================
+   SKEUOMORPHISM THEME DESIGN SYSTEM (Scoped via [data-theme="skeuomorphism"])
+   Rich tactile surfaces, 3D physical depth, metallic/bevel highlights & shadows
+   ========================================================================== */
+
+[data-theme="skeuomorphism"] {
+    --sk-bg-body: #e2e8f0;
+    --sk-bg-card: #f1f5f9;
+    --sk-primary: #2563eb;
+    --sk-text-main: #1e293b;
+    --sk-text-muted: #64748b;
+    --sk-border: #cbd5e1;
+}
+
+[data-theme="skeuomorphism"] body {
+    background-color: var(--sk-bg-body) !important;
+    background-image: radial-gradient(rgba(255, 255, 255, 0.4) 1px, transparent 0);
+    background-size: 16px 16px;
+    color: var(--sk-text-main) !important;
+}
+
+/* Sidebar Tactile Styling */
+[data-theme="skeuomorphism"] #sidebar {
+    background: linear-gradient(180deg, #ffffff 0%, #e2e8f0 100%) !important;
+    border-right: 2px solid #cbd5e1 !important;
+    box-shadow: 4px 0 10px rgba(0, 0, 0, 0.1), inset -1px 0 0 rgba(255, 255, 255, 0.8) !important;
+}
+
+[data-theme="skeuomorphism"] .sidebar-brand {
+    background: linear-gradient(180deg, #f8fafc 0%, #cbd5e1 100%) !important;
+    border-bottom: 2px solid #94a3b8 !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+}
+
+[data-theme="skeuomorphism"] .menu-item {
+    background: linear-gradient(180deg, #ffffff 0%, #f1f5f9 100%);
+    border: 1px solid #cbd5e1;
+    box-shadow: 0 2px 3px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+    margin-bottom: 6px;
+    border-radius: 6px;
+    color: var(--sk-text-main) !important;
+}
+
+[data-theme="skeuomorphism"] .menu-item:hover {
+    background: linear-gradient(180deg, #eff6ff 0%, #dbeafe 100%) !important;
+    border-color: #93c5fd !important;
+    box-shadow: 0 3px 6px rgba(37, 99, 235, 0.15), inset 0 1px 0 rgba(255, 255, 255, 1) !important;
+    color: #1d4ed8 !important;
+}
+
+[data-theme="skeuomorphism"] .menu-item.active {
+    background: linear-gradient(180deg, #3b82f6 0%, #1d4ed8 100%) !important;
+    border: 1px solid #1e40af !important;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3), 0 1px 0 rgba(255, 255, 255, 0.8) !important;
+    color: #ffffff !important;
+    text-shadow: 0 -1px 1px rgba(0, 0, 0, 0.4);
+}
+
+/* Topbar Tactile Styling */
+[data-theme="skeuomorphism"] #topbar {
+    background: linear-gradient(180deg, #ffffff 0%, #f1f5f9 100%) !important;
+    border-bottom: 2px solid #cbd5e1 !important;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.06), inset 0 -1px 0 rgba(255, 255, 255, 0.9) !important;
+}
+
+/* 3D Physical Cards */
+[data-theme="skeuomorphism"] .card {
+    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%) !important;
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 10px !important;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 10px 15px -3px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9) !important;
+}
+
+[data-theme="skeuomorphism"] .card-header {
+    background: linear-gradient(180deg, #f8fafc 0%, #e2e8f0 100%) !important;
+    border-bottom: 1px solid #cbd5e1 !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9) !important;
+    font-weight: 700;
+}
+
+/* Physical Push Buttons */
+[data-theme="skeuomorphism"] .btn {
+    border-radius: 6px !important;
+    font-weight: 600 !important;
+    transition: all 0.15s ease !important;
+}
+
+[data-theme="skeuomorphism"] .btn-primary {
+    background: linear-gradient(180deg, #3b82f6 0%, #1d4ed8 100%) !important;
+    border: 1px solid #1e40af !important;
+    box-shadow: 0 3px 5px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.4) !important;
+    color: #ffffff !important;
+    text-shadow: 0 -1px 1px rgba(0, 0, 0, 0.4);
+}
+
+[data-theme="skeuomorphism"] .btn-primary:hover {
+    background: linear-gradient(180deg, #60a5fa 0%, #2563eb 100%) !important;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.6) !important;
+}
+
+[data-theme="skeuomorphism"] .btn-primary:active {
+    background: linear-gradient(180deg, #1d4ed8 0%, #1e40af 100%) !important;
+    box-shadow: inset 0 3px 5px rgba(0, 0, 0, 0.4) !important;
+    transform: translateY(1px);
+}
+
+[data-theme="skeuomorphism"] .btn-secondary,
+[data-theme="skeuomorphism"] .btn-light {
+    background: linear-gradient(180deg, #ffffff 0%, #e2e8f0 100%) !important;
+    border: 1px solid #cbd5e1 !important;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.9) !important;
+    color: #334155 !important;
+}
+
+[data-theme="skeuomorphism"] .btn-success {
+    background: linear-gradient(180deg, #22c55e 0%, #15803d 100%) !important;
+    border: 1px solid #166534 !important;
+    box-shadow: 0 3px 5px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.4) !important;
+    color: #ffffff !important;
+}
+
+[data-theme="skeuomorphism"] .btn-danger {
+    background: linear-gradient(180deg, #ef4444 0%, #b91c1c 100%) !important;
+    border: 1px solid #991b1b !important;
+    box-shadow: 0 3px 5px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.4) !important;
+    color: #ffffff !important;
+}
+
+/* Inset Form Controls */
+[data-theme="skeuomorphism"] .form-control,
+[data-theme="skeuomorphism"] .form-select,
+[data-theme="skeuomorphism"] input[type="text"],
+[data-theme="skeuomorphism"] input[type="password"],
+[data-theme="skeuomorphism"] input[type="email"],
+[data-theme="skeuomorphism"] textarea,
+[data-theme="skeuomorphism"] select {
+    background: #ffffff !important;
+    border: 1px solid #cbd5e1 !important;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.12), 0 1px 0 rgba(255, 255, 255, 0.8) !important;
+    border-radius: 6px !important;
+    color: #0f172a !important;
+}
+
+[data-theme="skeuomorphism"] .form-control:focus,
+[data-theme="skeuomorphism"] .form-select:focus {
+    border-color: #3b82f6 !important;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1), 0 0 0 3px rgba(59, 130, 246, 0.25) !important;
+}
+
+/* AG Grid Skeuomorphism Overrides */
+[data-theme="skeuomorphism"] .ag-theme-alpine {
+    --ag-background-color: #f8fafc;
+    --ag-header-background-color: #e2e8f0;
+    --ag-border-color: #cbd5e1;
+    --ag-row-hover-color: #eff6ff;
+}
+
+[data-theme="skeuomorphism"] .ag-header {
+    box-shadow: inset 0 -2px 3px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9) !important;
+    font-weight: 700;
+}

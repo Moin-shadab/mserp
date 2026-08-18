@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
@@ -10,8 +11,32 @@ class ModuleScannerService
 {
     /**
      * Scan the resources/views/modules directory and dynamically register modules and pages.
+     * Cached for high performance under high traffic.
      */
-    public static function scan()
+    public static function scan(bool $force = false)
+    {
+        if ($force) {
+            self::clearCache();
+        }
+
+        Cache::remember('erp_module_scanner_cache_v2', 300, function () {
+            self::runScanLogic();
+            return true;
+        });
+    }
+
+    /**
+     * Clear the scanner cache.
+     */
+    public static function clearCache()
+    {
+        Cache::forget('erp_module_scanner_cache_v2');
+    }
+
+    /**
+     * Internal scan execution logic.
+     */
+    protected static function runScanLogic()
     {
         $modulesPath = resource_path('views/modules');
 

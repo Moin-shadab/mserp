@@ -1,0 +1,284 @@
+/* ==========================================================================
+   CYBER MATRIX / HACKER THEME DESIGN SYSTEM (Scoped via [data-theme="cyber"])
+   Pitch-black obsidian background, glowing Matrix Green accents (#00ff66 / #10b981),
+   high-contrast crisp emerald typography, terminal-style panels & neon status pills.
+   ========================================================================== */
+
+[data-theme="cyber"] {
+    --cyber-bg: #030706;
+    --cyber-card-bg: #080f0c;
+    --cyber-sidebar-bg: #050a08;
+    --cyber-border: rgba(0, 255, 102, 0.25);
+    --cyber-border-glow: rgba(0, 255, 102, 0.5);
+    --cyber-green: #00ff66;
+    --cyber-green-accent: #10b981;
+    --cyber-text-main: #ecfdf5;
+    --cyber-text-muted: #6ee7b7;
+    --cyber-text-dim: #9ca3af;
+}
+
+/* Pitch-black Obsidian Background with Matrix Terminal Grid */
+[data-theme="cyber"] body {
+    background-color: var(--cyber-bg) !important;
+    background-image: 
+        linear-gradient(rgba(0, 255, 102, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 255, 102, 0.03) 1px, transparent 1px) !important;
+    background-size: 32px 32px !important;
+    color: var(--cyber-text-main) !important;
+    font-family: 'JetBrains Mono', 'Plus Jakarta Sans', monospace, sans-serif !important;
+}
+
+/* Cyber Matrix Sidebar */
+[data-theme="cyber"] #sidebar {
+    background-color: var(--cyber-sidebar-bg) !important;
+    border-right: 1px solid var(--cyber-border) !important;
+    box-shadow: 4px 0 20px rgba(0, 255, 102, 0.05) !important;
+}
+
+[data-theme="cyber"] .sidebar-brand {
+    background: #030706 !important;
+    border-bottom: 1px solid var(--cyber-border) !important;
+}
+
+[data-theme="cyber"] .sidebar-brand span {
+    color: var(--cyber-green) !important;
+    text-shadow: 0 0 10px rgba(0, 255, 102, 0.6);
+    font-weight: 800;
+    letter-spacing: 1px;
+}
+
+[data-theme="cyber"] .menu-header {
+    color: var(--cyber-green-accent) !important;
+    letter-spacing: 1px;
+    font-size: 0.7rem;
+}
+
+[data-theme="cyber"] .menu-item {
+    background: rgba(0, 255, 102, 0.03);
+    border: 1px solid rgba(0, 255, 102, 0.12);
+    color: #a7f3d0 !important;
+    margin-bottom: 6px;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+}
+
+[data-theme="cyber"] .menu-item:hover {
+    background: rgba(0, 255, 102, 0.1) !important;
+    border-color: var(--cyber-green) !important;
+    color: #ffffff !important;
+    box-shadow: 0 0 15px rgba(0, 255, 102, 0.3) !important;
+    transform: translateX(2px);
+}
+
+[data-theme="cyber"] .menu-item.active {
+    background: linear-gradient(135deg, #059669 0%, #10b981 100%) !important;
+    border: 1px solid var(--cyber-green) !important;
+    color: #ffffff !important;
+    box-shadow: 0 0 20px rgba(0, 255, 102, 0.5) !important;
+    font-weight: 700;
+}
+
+/* Cyber Matrix Topbar */
+[data-theme="cyber"] #topbar {
+    background-color: var(--cyber-sidebar-bg) !important;
+    border-bottom: 1px solid var(--cyber-border) !important;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5) !important;
+}
+
+[data-theme="cyber"] .global-search input {
+    background: #030706 !important;
+    border: 1px solid var(--cyber-border) !important;
+    color: #ecfdf5 !important;
+    border-radius: 8px !important;
+}
+
+[data-theme="cyber"] .global-search input:focus {
+    border-color: var(--cyber-green) !important;
+    box-shadow: 0 0 15px rgba(0, 255, 102, 0.4) !important;
+}
+
+/* Cyber Terminal Cards */
+[data-theme="cyber"] .card {
+    background-color: var(--cyber-card-bg) !important;
+    border: 1px solid var(--cyber-border) !important;
+    border-radius: 12px !important;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.7), 0 0 15px rgba(0, 255, 102, 0.05) !important;
+    color: var(--cyber-text-main) !important;
+}
+
+[data-theme="cyber"] .card-header {
+    background: rgba(0, 255, 102, 0.05) !important;
+    border-bottom: 1px solid var(--cyber-border) !important;
+    color: var(--cyber-green) !important;
+    text-shadow: 0 0 8px rgba(0, 255, 102, 0.4);
+    font-weight: 700;
+}
+
+[data-theme="cyber"] .card-footer {
+    background: rgba(0, 0, 0, 0.4) !important;
+    border-top: 1px solid var(--cyber-border) !important;
+}
+
+[data-theme="cyber"] .text-muted,
+[data-theme="cyber"] .text-secondary {
+    color: var(--cyber-text-dim) !important;
+}
+
+/* Matrix Neon Buttons */
+[data-theme="cyber"] .btn {
+    border-radius: 8px !important;
+    font-weight: 600 !important;
+    transition: all 0.2s ease !important;
+}
+
+[data-theme="cyber"] .btn-primary {
+    background: linear-gradient(135deg, #059669 0%, #10b981 100%) !important;
+    border: 1px solid var(--cyber-green) !important;
+    box-shadow: 0 0 15px rgba(0, 255, 102, 0.35) !important;
+    color: #ffffff !important;
+    text-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+}
+
+[data-theme="cyber"] .btn-primary:hover {
+    background: linear-gradient(135deg, #10b981 0%, #34d399 100%) !important;
+    box-shadow: 0 0 25px rgba(0, 255, 102, 0.6) !important;
+    transform: translateY(-1px);
+}
+
+[data-theme="cyber"] .btn-secondary,
+[data-theme="cyber"] .btn-light {
+    background: rgba(0, 255, 102, 0.06) !important;
+    border: 1px solid var(--cyber-border) !important;
+    color: #a7f3d0 !important;
+}
+
+[data-theme="cyber"] .btn-secondary:hover,
+[data-theme="cyber"] .btn-light:hover {
+    background: rgba(0, 255, 102, 0.15) !important;
+    border-color: var(--cyber-green) !important;
+    color: #ffffff !important;
+}
+
+[data-theme="cyber"] .btn-success {
+    background: linear-gradient(135deg, #047857 0%, #059669 100%) !important;
+    border: 1px solid #34d399 !important;
+    box-shadow: 0 0 15px rgba(52, 211, 153, 0.4) !important;
+    color: #ffffff !important;
+}
+
+[data-theme="cyber"] .btn-danger {
+    background: linear-gradient(135deg, #991b1b 0%, #dc2626 100%) !important;
+    border: 1px solid #f87171 !important;
+    box-shadow: 0 0 15px rgba(248, 113, 113, 0.4) !important;
+    color: #ffffff !important;
+}
+
+/* Cyber Form Inputs */
+[data-theme="cyber"] .form-control,
+[data-theme="cyber"] .form-select,
+[data-theme="cyber"] input[type="text"],
+[data-theme="cyber"] input[type="password"],
+[data-theme="cyber"] input[type="email"],
+[data-theme="cyber"] textarea,
+[data-theme="cyber"] select {
+    background: #050a08 !important;
+    border: 1px solid var(--cyber-border) !important;
+    border-radius: 8px !important;
+    color: #ecfdf5 !important;
+}
+
+[data-theme="cyber"] input::placeholder,
+[data-theme="cyber"] textarea::placeholder {
+    color: #4b5563 !important;
+}
+
+[data-theme="cyber"] select option {
+    background: #050a08 !important;
+    color: #ecfdf5 !important;
+}
+
+[data-theme="cyber"] .form-control:focus,
+[data-theme="cyber"] .form-select:focus {
+    border-color: var(--cyber-green) !important;
+    box-shadow: 0 0 15px rgba(0, 255, 102, 0.4) !important;
+}
+
+/* Cyber Modals */
+[data-theme="cyber"] .modal-content {
+    background: #080f0c !important;
+    border: 1px solid var(--cyber-border-glow) !important;
+    border-radius: 14px !important;
+    box-shadow: 0 0 35px rgba(0, 255, 102, 0.25) !important;
+    color: #ecfdf5 !important;
+}
+
+[data-theme="cyber"] .modal-header,
+[data-theme="cyber"] .modal-footer {
+    border-color: var(--cyber-border) !important;
+}
+
+[data-theme="cyber"] .modal-footer {
+    background: rgba(0, 0, 0, 0.3) !important;
+}
+
+/* Cyber Neon Status Badges */
+[data-theme="cyber"] .badge {
+    border-radius: 9999px !important;
+    padding: 0.35em 0.75em !important;
+    font-weight: 600 !important;
+}
+
+[data-theme="cyber"] .badge.bg-success,
+[data-theme="cyber"] .badge-success {
+    background: rgba(0, 255, 102, 0.12) !important;
+    border: 1px solid #00ff66 !important;
+    color: #00ff66 !important;
+    box-shadow: 0 0 10px rgba(0, 255, 102, 0.3) !important;
+}
+
+[data-theme="cyber"] .badge.bg-primary,
+[data-theme="cyber"] .badge-primary {
+    background: rgba(16, 185, 129, 0.15) !important;
+    border: 1px solid #10b981 !important;
+    color: #34d399 !important;
+}
+
+[data-theme="cyber"] .badge.bg-danger,
+[data-theme="cyber"] .badge-danger {
+    background: rgba(239, 68, 68, 0.15) !important;
+    border: 1px solid #ef4444 !important;
+    color: #f87171 !important;
+}
+
+[data-theme="cyber"] .badge.bg-warning,
+[data-theme="cyber"] .badge-warning {
+    background: rgba(245, 158, 11, 0.15) !important;
+    border: 1px solid #f59e0b !important;
+    color: #fbbf24 !important;
+}
+
+/* AG Grid Cyber Matrix Overrides */
+[data-theme="cyber"] .ag-theme-alpine {
+    --ag-background-color: #080f0c;
+    --ag-header-background-color: #0d1713;
+    --ag-border-color: rgba(0, 255, 102, 0.2);
+    --ag-row-hover-color: rgba(0, 255, 102, 0.12);
+    --ag-data-color: #ecfdf5;
+    --ag-header-foreground-color: #6ee7b7;
+    --ag-secondary-foreground-color: #9ca3af;
+}
+
+[data-theme="cyber"] .ag-header {
+    border-bottom: 1px solid var(--cyber-border) !important;
+}
+
+[data-theme="cyber"] .table {
+    color: #ecfdf5 !important;
+}
+
+[data-theme="cyber"] .table-light,
+[data-theme="cyber"] .table-light th {
+    background: rgba(0, 255, 102, 0.05) !important;
+    color: #6ee7b7 !important;
+    border-color: var(--cyber-border) !important;
+}
