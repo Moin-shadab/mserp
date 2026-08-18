@@ -327,6 +327,10 @@
                         <select class="form-select form-select-sm border theme-selector-btn" id="theme-switcher" style="font-size:0.8rem; font-weight:700;" onchange="handleThemeSwitch(this.value)" title="Switch Backend System Theme">
                             <option value="classic">🎨 Theme: Classic</option>
                             <option value="brutalism">⚡ Theme: Brutalism</option>
+                            <option value="skeuomorphism">🪵 Theme: Skeuomorphism</option>
+                            <option value="neomorphism">⚪ Theme: Neomorphism</option>
+                            <option value="glassmorphism">💎 Theme: Glassmorphism</option>
+                            <option value="cyber">💻 Theme: Cyber Matrix</option>
                         </select>
                     </div>
 
@@ -465,7 +469,15 @@
             .then(r => r.json())
             .then(data => {
                 if (data.success && window.showToast) {
-                    showToast('success', 'Theme updated to ' + (theme === 'brutalism' ? 'Brutalism' : 'Classic'));
+                    const themeNames = {
+                        'classic': 'Classic',
+                        'brutalism': 'Neo-Brutalism',
+                        'skeuomorphism': 'Skeuomorphism',
+                        'neomorphism': 'Neomorphism',
+                        'glassmorphism': 'Glassmorphism',
+                        'cyber': 'Cyber Matrix'
+                    };
+                    showToast('success', 'Theme updated to ' + (themeNames[theme] || theme));
                 }
             })
             .catch(err => {
@@ -1136,6 +1148,10 @@
                             <select id="settings-theme-select" class="form-select form-select-sm" onchange="handleThemeSwitch(this.value)">
                                 <option value="classic">🎨 Classic Light Theme</option>
                                 <option value="brutalism">⚡ Neo-Brutalism Theme</option>
+                                <option value="skeuomorphism">🪵 Skeuomorphism (3D Tactile)</option>
+                                <option value="neomorphism">⚪ Neomorphism (Soft Relief)</option>
+                                <option value="glassmorphism">💎 Glassmorphism (Frosted Glass)</option>
+                                <option value="cyber">💻 Cyber Matrix (Hacker Dark)</option>
                             </select>
                             <span class="form-text text-muted" style="font-size:0.75rem;">Theme preference is saved directly to your MySQL backend database profile.</span>
                         </div>

@@ -11,6 +11,10 @@
 @import 'ag-grid-community/styles/ag-theme-alpine.css';
 @import 'quill/dist/quill.snow.css';
 @import './brutalism.css';
+@import './skeuomorphism.css';
+@import './neomorphism.css';
+@import './glassmorphism.css';
+@import './cyber.css';
 
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';

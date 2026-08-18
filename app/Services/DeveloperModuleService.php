@@ -596,5 +596,7 @@ PHP;
                 ]
             );
         }
+
+        ModuleScannerService::clearCache();
     }
 }

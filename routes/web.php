@@ -65,7 +65,7 @@ Route::post('/login', function (Request $request) {
     return back()->withErrors([
         'email' => 'The provided credentials do not match our records.',
     ])->onlyInput('email');
-});
+})->middleware('throttle:login');
 
 Route::get('/logout', function (Request $request) {
     Auth::logout();
@@ -92,6 +92,28 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/api/user/switch-context', [DashboardController::class, 'switchContext']);
     Route::post('/api/user/switch-theme', [DashboardController::class, 'switchTheme']);
     Route::post('/api/user/save-dashboard-layout', [DashboardController::class, 'saveDashboardLayout']);
+
+    // High-speed Bulk Data Processing & Ingestion Endpoint (Chunked single-transaction processing)
+    Route::post('/api/bulk/process', function (Request $request) {
+        $table = $request->input('table');
+        $records = $request->input('records', []);
+        $chunkSize = (int) $request->input('chunk_size', 2500);
+
+        if (empty($table) || !is_array($records)) {
+            return response()->json(['error' => 'Table name and array of records are required.'], 400);
+        }
+
+        if (!\Illuminate\Support\Facades\Schema::hasTable($table)) {
+            return response()->json(['error' => "Table '{$table}' does not exist."], 404);
+        }
+
+        try {
+            $res = \App\Services\BulkDataService::processBulkInsert($table, $records, $chunkSize);
+            return response()->json($res);
+        } catch (\Throwable $e) {
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
+    })->middleware('throttle:api');
 
     // Custom generated module routes
     if (file_exists(__DIR__ . '/generated_modules.php')) {
