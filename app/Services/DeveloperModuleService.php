@@ -208,16 +208,24 @@ class DeveloperModuleService
     protected function generateIsolatedCodePage($moduleId, $moduleSlug, $pageName, $pageSlug, $dbTable, $primaryKey, $sqlQuery, $gridSchema, $formSchema, $input): array
     {
         $controllerClassName = Str::studly(str_replace('-', '_', $moduleSlug)) . Str::studly(str_replace('-', '_', $pageSlug)) . 'Controller';
-        $viewPathDir = resource_path("views/modules/{$moduleSlug}");
-        $viewFile = "{$viewPathDir}/{$pageSlug}.blade.php";
+        $viewPathDir = resource_path("views/modules/{$moduleSlug}/{$pageSlug}");
         
         if (!File::exists($viewPathDir)) {
             File::makeDirectory($viewPathDir, 0755, true);
         }
 
-        // Render Blade View Content
-        $bladeContent = $this->buildBladeViewContent($pageName, $pageSlug, $moduleSlug, $gridSchema, $formSchema, $primaryKey);
-        File::put($viewFile, $bladeContent);
+        // Render modular Blade, CSS, and JS files
+        $mainBladeFile = "{$viewPathDir}/main.blade.php";
+        $cssBladeFile = "{$viewPathDir}/css.blade.php";
+        $jsBladeFile = "{$viewPathDir}/js.blade.php";
+
+        $mainContent = $this->buildBladeMainContent($pageName, $pageSlug, $moduleSlug, $primaryKey);
+        $cssContent = $this->buildBladeCssContent($pageSlug);
+        $jsContent = $this->buildBladeJsContent($pageName, $pageSlug, $moduleSlug, $gridSchema, $formSchema, $primaryKey);
+
+        File::put($mainBladeFile, $mainContent);
+        File::put($cssBladeFile, $cssContent);
+        File::put($jsBladeFile, $jsContent);
 
         // Generate Isolated Controller
         $controllerDir = app_path("Http/Controllers/Generated");
@@ -286,20 +294,17 @@ class DeveloperModuleService
             'mode' => 'isolated_code',
             'page_id' => $pageId,
             'url' => "/erp/{$pageSlug}",
-            'blade_file' => $viewFile,
+            'blade_file' => $mainBladeFile,
             'controller_file' => $controllerFile,
-            'message' => "Isolated page '{$pageName}' created with standalone Blade view, JS, and Controller."
+            'message' => "Isolated page '{$pageName}' created with standalone main.blade.php, js.blade.php, css.blade.php, and Controller."
         ];
     }
 
     /**
-     * Build Blade view file content using ErpGrid and ErpForms.
+     * Build Main Blade view file content.
      */
-    protected function buildBladeViewContent(string $pageName, string $pageSlug, string $moduleSlug, array $gridSchema, array $formSchema, string $primaryKey): string
+    protected function buildBladeMainContent(string $pageName, string $pageSlug, string $moduleSlug, string $primaryKey): string
     {
-        $columnsJson = json_encode($gridSchema, JSON_PRETTY_PRINT);
-        $formFieldsJson = json_encode($formSchema, JSON_PRETTY_PRINT);
-
         $jsSlug = str_replace('-', '_', $pageSlug);
         return <<<BLADE
 <div class="container-fluid p-4">
@@ -341,113 +346,136 @@ class DeveloperModuleService
         </div>
     </div>
 </div>
+BLADE;
+    }
 
-<script>
-(function() {
-    const pageSlug = "{$pageSlug}";
-    const moduleSlug = "{$moduleSlug}";
-    const primaryKey = "{$primaryKey}";
-    const gridColumns = {$columnsJson};
-    const formFields = {$formFieldsJson};
-    
-    let gridInstance = null;
-    const modalEl = document.getElementById(`modal-\${pageSlug}`);
-    const bsModal = new bootstrap.Modal(modalEl);
-    let activeRecordId = null;
+    /**
+     * Build CSS content.
+     */
+    protected function buildBladeCssContent(string $pageSlug): string
+    {
+        return <<<CSS
+/* Custom CSS for {$pageSlug} */
+CSS;
+    }
 
-    // Render form fields
-    const formBody = document.getElementById(`form-body-\${pageSlug}`);
+    /**
+     * Build JS content for loader execution.
+     */
+    protected function buildBladeJsContent(string $pageName, string $pageSlug, string $moduleSlug, array $gridSchema, array $formSchema, string $primaryKey): string
+    {
+        $columnsJson = json_encode($gridSchema, JSON_PRETTY_PRINT);
+        $formFieldsJson = json_encode($formSchema, JSON_PRETTY_PRINT);
+        $jsSlug = str_replace('-', '_', $pageSlug);
+
+        return <<<JS
+const pageSlug = "{$pageSlug}";
+const moduleSlug = "{$moduleSlug}";
+const primaryKey = "{$primaryKey}";
+const gridColumns = {$columnsJson};
+const formFields = {$formFieldsJson};
+
+let gridInstance = null;
+const modalEl = document.getElementById(`modal-\${pageSlug}`);
+const bsModal = new bootstrap.Modal(modalEl);
+let activeRecordId = null;
+
+// Render form fields
+const formBody = document.getElementById(`form-body-\${pageSlug}`);
+if (formBody) {
     formBody.innerHTML = ErpForms.renderFieldsHtml(formFields);
     ErpForms.bindInteractiveFields(formBody);
+}
 
-    // Initialize ErpGrid
-    gridInstance = ErpGrid.createGrid({
-        id: `grid-\${pageSlug}`,
-        primaryKey: primaryKey,
-        dataUrl: `/api/custom/\${moduleSlug}/\${pageSlug}/data`,
-        columns: gridColumns,
-        wrapText: true,
-        autoRowHeight: true,
-        onEdit: function(rowData) {
-            openCustomEditModal_{$jsSlug}(rowData);
-        },
-        onDelete: function(id) {
-            deleteCustomRecord_{$jsSlug}(id);
-        }
-    });
+// Initialize ErpGrid
+gridInstance = ErpGrid.createGrid({
+    id: `grid-\${pageSlug}`,
+    primaryKey: primaryKey,
+    dataUrl: `/api/custom/\${moduleSlug}/\${pageSlug}/data`,
+    columns: gridColumns,
+    wrapText: true,
+    autoRowHeight: true,
+    onEdit: function(rowData) {
+        openCustomEditModal_{$jsSlug}(rowData);
+    },
+    onDelete: function(id) {
+        deleteCustomRecord_{$jsSlug}(id);
+    }
+});
 
-    // Quick Search Listener
-    document.getElementById(`custom-grid-search-\${pageSlug}`).addEventListener('input', function(e) {
+// Quick Search Listener
+const searchInput = document.getElementById(`custom-grid-search-\${pageSlug}`);
+if (searchInput) {
+    searchInput.addEventListener('input', function(e) {
         if (gridInstance) gridInstance.quickSearch(e.target.value);
     });
+}
 
-    window.openCustomCreateModal_{$jsSlug} = function() {
-        activeRecordId = null;
-        document.getElementById(`modal-title-\${pageSlug}`).textContent = 'Add Record';
-        document.getElementById(`form-\${pageSlug}`).reset();
-        bsModal.show();
-    };
+window.openCustomCreateModal_{$jsSlug} = function() {
+    activeRecordId = null;
+    document.getElementById(`modal-title-\${pageSlug}`).textContent = 'Add Record';
+    document.getElementById(`form-\${pageSlug}`).reset();
+    bsModal.show();
+};
 
-    window.openCustomEditModal_{$jsSlug} = function(rowData) {
-        activeRecordId = rowData[primaryKey];
-        document.getElementById(`modal-title-\${pageSlug}`).textContent = 'Edit Record';
-        formBody.innerHTML = ErpForms.renderFieldsHtml(formFields, rowData);
-        ErpForms.bindInteractiveFields(formBody);
-        bsModal.show();
-    };
+window.openCustomEditModal_{$jsSlug} = function(rowData) {
+    activeRecordId = rowData[primaryKey];
+    document.getElementById(`modal-title-\${pageSlug}`).textContent = 'Edit Record';
+    formBody.innerHTML = ErpForms.renderFieldsHtml(formFields, rowData);
+    ErpForms.bindInteractiveFields(formBody);
+    bsModal.show();
+};
 
-    window.saveCustomRecord_{$jsSlug} = function(e) {
-        e.preventDefault();
-        const form = document.getElementById(`form-\${pageSlug}`);
-        if (!ErpForms.validateForm(form)) return;
+window.saveCustomRecord_{$jsSlug} = function(e) {
+    e.preventDefault();
+    const form = document.getElementById(`form-\${pageSlug}`);
+    if (!ErpForms.validateForm(form)) return;
 
-        const formData = new FormData(form);
-        const payload = Object.fromEntries(formData.entries());
+    const formData = new FormData(form);
+    const payload = Object.fromEntries(formData.entries());
 
-        const url = activeRecordId 
-            ? `/api/custom/\${moduleSlug}/\${pageSlug}/update/\${activeRecordId}`
-            : `/api/custom/\${moduleSlug}/\${pageSlug}/store`;
+    const url = activeRecordId 
+        ? `/api/custom/\${moduleSlug}/\${pageSlug}/update/\${activeRecordId}`
+        : `/api/custom/\${moduleSlug}/\${pageSlug}/store`;
 
-        fetch(url, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-                'X-Requested-With': 'XMLHttpRequest'
-            },
-            body: JSON.stringify(payload)
-        })
-        .then(res => res.json())
-        .then(data => {
-            if (data.error) throw new Error(data.error);
-            bsModal.hide();
-            gridInstance.refresh();
-            showToast('success', 'Record saved successfully.');
-        })
-        .catch(err => {
-            showToast('danger', err.message || 'Error saving record.');
-        });
-    };
+    fetch(url, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: JSON.stringify(payload)
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.error) throw new Error(data.error);
+        bsModal.hide();
+        gridInstance.refresh();
+        showToast('success', 'Record saved successfully.');
+    })
+    .catch(err => {
+        showToast('danger', err.message || 'Error saving record.');
+    });
+};
 
-    window.deleteCustomRecord_{$jsSlug} = function(id) {
-        if (!confirm('Are you sure you want to delete this record?')) return;
-        fetch(`/api/custom/\${moduleSlug}/\${pageSlug}/destroy/\${id}`, {
-            method: 'DELETE',
-            headers: {
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-                'X-Requested-With': 'XMLHttpRequest'
-            }
-        })
-        .then(res => res.json())
-        .then(data => {
-            gridInstance.refresh();
-            showToast('success', 'Record deleted.');
-        })
-        .catch(err => showToast('danger', 'Failed to delete record.'));
-    };
-})();
-</script>
-BLADE;
+window.deleteCustomRecord_{$jsSlug} = function(id) {
+    if (!confirm('Are you sure you want to delete this record?')) return;
+    fetch(`/api/custom/\${moduleSlug}/\${pageSlug}/destroy/\${id}`, {
+        method: 'DELETE',
+        headers: {
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(res => res.json())
+    .then(data => {
+        gridInstance.refresh();
+        showToast('success', 'Record deleted.');
+    })
+    .catch(err => showToast('danger', 'Failed to delete record.'));
+};
+JS;
     }
 
     /**
