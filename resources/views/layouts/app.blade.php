@@ -329,8 +329,7 @@
                             <option value="brutalism">⚡ Theme: Brutalism</option>
                             <option value="skeuomorphism">🪵 Theme: Skeuomorphism</option>
                             <option value="neomorphism">⚪ Theme: Neomorphism</option>
-                            <option value="glassmorphism">💎 Theme: Glassmorphism</option>
-                            <option value="cyber">💻 Theme: Cyber Matrix</option>
+                            <option value="maximalist">💥 Theme: Maximalist Studio</option>
                         </select>
                     </div>
 
@@ -474,8 +473,7 @@
                         'brutalism': 'Neo-Brutalism',
                         'skeuomorphism': 'Skeuomorphism',
                         'neomorphism': 'Neomorphism',
-                        'glassmorphism': 'Glassmorphism',
-                        'cyber': 'Cyber Matrix'
+                        'maximalist': 'Maximalist Studio'
                     };
                     showToast('success', 'Theme updated to ' + (themeNames[theme] || theme));
                 }
@@ -1150,8 +1148,7 @@
                                 <option value="brutalism">⚡ Neo-Brutalism Theme</option>
                                 <option value="skeuomorphism">🪵 Skeuomorphism (3D Tactile)</option>
                                 <option value="neomorphism">⚪ Neomorphism (Soft Relief)</option>
-                                <option value="glassmorphism">💎 Glassmorphism (Frosted Glass)</option>
-                                <option value="cyber">💻 Cyber Matrix (Hacker Dark)</option>
+                                <option value="maximalist">💥 Maximalist Studio (Spotify/Figma Hot UI)</option>
                             </select>
                             <span class="form-text text-muted" style="font-size:0.75rem;">Theme preference is saved directly to your MySQL backend database profile.</span>
                         </div>

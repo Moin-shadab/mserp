@@ -301,7 +301,7 @@ class DashboardController extends Controller
         }
 
         $theme = $request->input('theme', 'classic');
-        if (!in_array($theme, ['classic', 'brutalism', 'skeuomorphism', 'neomorphism', 'glassmorphism', 'cyber'])) {
+        if (!in_array($theme, ['classic', 'brutalism', 'skeuomorphism', 'neomorphism', 'maximalist'])) {
             $theme = 'classic';
         }
 

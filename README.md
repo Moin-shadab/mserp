@@ -3,7 +3,7 @@
 # 🚀 MS ERP — Free Open-Source Enterprise Platform
 
 <p align="center">
-  <strong>The Next-Generation Free & Open-Source ERP System powered by Laravel, PHP 8.3+, MySQL, Dynamic Metadata Engine, Low-Code Developer Studio, and 6 Visual Theme Engines.</strong>
+  <strong>The Next-Generation Free & Open-Source ERP System powered by Laravel, PHP 8.3+, MySQL, Dynamic Metadata Engine, Low-Code Developer Studio, and 5 Visual Theme Engines.</strong>
 </p>
 
 [![Laravel Version](https://img.shields.io/badge/Laravel-v11.x-FF2D20?style=for-the-badge&logo=laravel&logoColor=white)](https://laravel.com)
@@ -14,6 +14,10 @@
 [![Build Status](https://img.shields.io/badge/Build-Passing-brightgreen?style=for-the-badge)](https://github.com/Moin-shadab/mserp)
 
 <br/>
+
+<p align="center">
+  <img src="public/images/dashboard_preview.png" alt="MS ERP Executive Dashboard Preview" width="100%" style="border-radius: 14px; box-shadow: 0 15px 35px rgba(0,0,0,0.4);" />
+</p>
 
 </div>
 
@@ -29,14 +33,13 @@ Unlike legacy ERP software that requires complex code rewrites to add new module
 
 ## ✨ Features Breakdown
 
-### 🎨 6 MySQL-Persisted Visual Theme Engines
-Switch instantly between 6 curated visual design systems, persisted to your MySQL user profile:
+### 🎨 5 MySQL-Persisted Visual Theme Engines
+Switch instantly between 5 curated visual design systems, persisted to your MySQL user profile:
 1. 🎨 **Classic Enterprise**: Ultra-clean professional light interface.
 2. ⚡ **Neo-Brutalism**: High-contrast brutalist borders, hard offset shadows (`3px 3px 0 #000`), and bold accents.
 3. 🪵 **Skeuomorphism**: Tactile 3D physical glass buttons, metallic bevels, and embossed card depth.
 4. ⚪ **Neomorphism**: Soft UI relief dual-shadow inset/outset design system.
-5. 💎 **Executive Glassmorphism**: Linear/Raycast dark glass aesthetic with frosted backdrop blur and neon badges.
-6. 💻 **Cyber Matrix**: Hacker dark pitch-black obsidian grid UI with Matrix Green (`#00ff66`) glowing accents.
+5. 💥 **Maximalist Studio**: Spotify Wrapped & Figma Conf inspired creative aesthetic, featuring deep dark violet backgrounds, electric Hot Magenta (#ec4899) & Neon Cyan (#06b6d4) gradient cards, bold typography, and hyper-vibrant status badges.
 
 ### 🛠️ Low-Code / No-Code Developer Module Studio
 - **Instant CRUD Generator**: Build new modules and pages directly from SQL queries or MySQL tables without writing boilerplate controllers or views.
@@ -91,57 +94,162 @@ The interactive installer will:
 
 ---
 
-## 📥 Detailed OS Installation Guides
+## 🌐 Virtual Host Setup Guide (Apache & Nginx for All OS)
 
-###  1. macOS Setup Guide
+To run MS ERP under a clean local domain (e.g. `http://erp.local` or `http://mserp.test`) without `php artisan serve`, follow the virtual host configurations below:
+
+### 🌐 Step 1: Add Local Domain to Hosts File
+
+####  macOS & 🐧 Linux Hosts Setup
+Open `/etc/hosts` in terminal:
 ```bash
-# Install dependencies via Homebrew
-brew install php mysql node composer
+sudo nano /etc/hosts
+```
+Add line:
+```hosts
+127.0.0.1   erp.local
+```
 
-# Start MySQL
-brew services start mysql
-
-# Clone & run setup
-git clone https://github.com/Moin-shadab/mserp.git
-cd mserp
-./setup.sh
-
-# Start ERP server
-php artisan serve
+#### 🪟 Windows Hosts Setup
+Open Notepad as Administrator and open file: `C:\Windows\System32\drivers\etc\hosts`
+Add line:
+```hosts
+127.0.0.1   erp.local
 ```
 
 ---
 
-### 🐧 2. Linux / Ubuntu Setup Guide
+### 🟢 1. Nginx Virtual Host Setup
+
+#### 🐧 Ubuntu / Linux Nginx Configuration
+Create file `/etc/nginx/sites-available/mserp`:
+```nginx
+server {
+    listen 80;
+    server_name erp.local;
+    root /var/www/mserp/public;
+
+    index index.php index.html;
+    charset utf-8;
+
+    location / {
+        try_files $uri $uri/ /index.php?$query_string;
+    }
+
+    location = /favicon.ico { access_log off; log_not_found off; }
+    location = /robots.txt  { access_log off; log_not_found off; }
+
+    error_page 404 /index.php;
+
+    location ~ \.php$ {
+        fastcgi_pass unix:/var/run/php/php8.3-fpm.sock;
+        fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
+        include fastcgi_params;
+    }
+
+    location ~ /\.ht {
+        deny all;
+    }
+}
+```
+Enable site & reload Nginx:
 ```bash
-# Install PHP 8.3/8.4, MySQL & Node
-sudo apt update && sudo apt install -y php8.3 php8.3-cli php8.3-mysql php8.3-mbstring \
-    php8.3-xml php8.3-curl php8.3-bcmath php8.3-zip mysql-server nodejs npm composer git
+sudo ln -s /etc/nginx/sites-available/mserp /etc/nginx/sites-enabled/
+sudo nginx -t
+sudo systemctl restart nginx
+```
 
-# Clone repository & run setup
-git clone https://github.com/Moin-shadab/mserp.git
-cd mserp
-chmod +x setup.sh
-./setup.sh
+####  macOS Homebrew Nginx Configuration
+Create `/opt/homebrew/etc/nginx/servers/mserp.conf`:
+```nginx
+server {
+    listen 80;
+    server_name erp.local;
+    root /Users/YOUR_USERNAME/Sites/erp/public;
 
-# Start app
-php artisan serve
+    index index.php index.html;
+
+    location / {
+        try_files $uri $uri/ /index.php?$query_string;
+    }
+
+    location ~ \.php$ {
+        fastcgi_pass 127.0.0.1:9000;
+        fastcgi_index index.php;
+        fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
+        include fastcgi_params;
+    }
+}
+```
+Restart Nginx:
+```bash
+brew services restart nginx
 ```
 
 ---
 
-### 🪟 3. Windows Setup Guide (Laragon / XAMPP)
-```cmd
-:: Clone repository
-git clone https://github.com/Moin-shadab/mserp.git
-cd mserp
+### 🔴 2. Apache Virtual Host Setup
 
-:: Run 1-command installer
-setup.bat
+#### 🐧 Ubuntu / Linux Apache Configuration
+Create `/etc/apache2/sites-available/mserp.conf`:
+```apache
+<VirtualHost *:80>
+    ServerName erp.local
+    ServerAdmin webmaster@localhost
+    DocumentRoot /var/www/mserp/public
 
-:: Start ERP server
-php artisan serve
+    <Directory /var/www/mserp/public>
+        Options Indexes FollowSymLinks
+        AllowOverride All
+        Require all granted
+    </Directory>
+
+    ErrorLog ${APACHE_LOG_DIR}/mserp_error.log
+    CustomLog ${APACHE_LOG_DIR}/mserp_access.log combined
+</VirtualHost>
 ```
+Enable rewrite module & site:
+```bash
+sudo a2enmod rewrite
+sudo a2ensite mserp.conf
+sudo systemctl restart apache2
+```
+
+####  macOS Apache Configuration
+Create `/etc/apache2/other/mserp.conf`:
+```apache
+<VirtualHost *:80>
+    ServerName erp.local
+    DocumentRoot "/Users/YOUR_USERNAME/Sites/erp/public"
+    
+    <Directory "/Users/YOUR_USERNAME/Sites/erp/public">
+        Options Indexes FollowSymLinks Multiviews
+        AllowOverride All
+        Require all granted
+    </Directory>
+</VirtualHost>
+```
+Restart Apache:
+```bash
+sudo apachectl restart
+```
+
+#### 🪟 Windows XAMPP Apache Configuration
+Open `C:\xampp\apache\conf\extra\httpd-vhosts.conf` and add:
+```apache
+<VirtualHost *:80>
+    DocumentRoot "C:/xampp/htdocs/mserp/public"
+    ServerName erp.local
+    <Directory "C:/xampp/htdocs/mserp/public">
+        AllowOverride All
+        Require all granted
+    </Directory>
+</VirtualHost>
+```
+Restart Apache from XAMPP Control Panel.
+
+#### 🪟 Windows Laragon
+Laragon automatically creates virtual hosts! Simply move the `mserp` directory into `C:\laragon\www\mserp` and open `http://mserp.test` in your browser.
 
 ---
 
