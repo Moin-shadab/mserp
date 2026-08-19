@@ -193,7 +193,9 @@ class ComprehensiveErpSeeder extends Seeder
                     ['name' => 'AP & AR Ageing', 'slug' => 'ap-ar-management', 'token' => 'ACC-105', 'view' => 'modules/accounting/ap_ar', 'icon' => 'bi-cash-stack'],
                     ['name' => 'Credit & Debit Notes', 'slug' => 'credit-debit-notes', 'token' => 'ACC-106', 'view' => 'modules/accounting/credit_debit_notes', 'icon' => 'bi-card-checklist'],
                     ['name' => 'Fiscal Periods', 'slug' => 'fiscal-periods', 'token' => 'ACC-107', 'view' => 'modules/accounting/fiscal_periods', 'icon' => 'bi-calendar-range'],
-                    ['name' => 'Bank Reconciliation', 'slug' => 'bank-reconciliation', 'token' => 'ACC-108', 'view' => 'modules/accounting/reconciliation', 'icon' => 'bi-bank']
+                    ['name' => 'Bank Reconciliation', 'slug' => 'bank-reconciliation', 'token' => 'ACC-108', 'view' => 'modules/accounting/reconciliation', 'icon' => 'bi-bank'],
+                    ['name' => 'Fixed Assets & Depreciation', 'slug' => 'fixed-assets', 'token' => 'ACC-109', 'view' => 'modules/accounting/fixed_assets', 'icon' => 'bi-building'],
+                    ['name' => 'Budgeting & Expenditure Variance', 'slug' => 'budgeting', 'token' => 'ACC-110', 'view' => 'modules/accounting/budgeting', 'icon' => 'bi-pie-chart-fill']
                 ]
             ],
             [
@@ -215,13 +217,25 @@ class ComprehensiveErpSeeder extends Seeder
                     ['name' => 'Purchase Requisitions & RFQs', 'slug' => 'purchase-requisitions', 'token' => 'PUR-301', 'view' => 'modules/purchase/purchase_requisitions', 'icon' => 'bi-file-earmark-text'],
                     ['name' => 'Purchase Orders & GRNs', 'slug' => 'purchase-orders-management', 'token' => 'PUR-302', 'view' => 'modules/purchase/purchase_orders', 'icon' => 'bi-bag-dash'],
                     ['name' => '3-Way Matching', 'slug' => 'three-way-matching', 'token' => 'PUR-303', 'view' => 'modules/purchase/three_way_matching', 'icon' => 'bi-check2-all'],
-                    ['name' => 'Purchase Returns & Payments', 'slug' => 'purchase-returns', 'token' => 'PUR-304', 'view' => 'modules/purchase/purchase_returns', 'icon' => 'bi-arrow-counterclockwise']
+                    ['name' => 'Purchase Returns & Payments', 'slug' => 'purchase-returns', 'token' => 'PUR-304', 'view' => 'modules/purchase/purchase_returns', 'icon' => 'bi-arrow-counterclockwise'],
+                    ['name' => 'Vendor Contracts & Evaluation', 'slug' => 'contracts-evaluations', 'token' => 'PUR-305', 'view' => 'modules/purchase/contracts_evaluations', 'icon' => 'bi-file-earmark-text-fill']
+                ]
+            ],
+            [
+                'name' => 'HR & Payroll Lifecycle',
+                'icon' => 'bi-people-fill',
+                'sequence' => 6,
+                'pages' => [
+                    ['name' => 'Employee Directory & HR Master', 'slug' => 'employee-directory', 'token' => 'HRM-551', 'view' => 'modules/hr/employee_directory', 'icon' => 'bi-person-badge-fill'],
+                    ['name' => 'Attendance & Leave Workflow', 'slug' => 'attendance-leave', 'token' => 'HRM-552', 'view' => 'modules/hr/attendance_leave', 'icon' => 'bi-calendar-check'],
+                    ['name' => 'Payroll & Deductions Engine', 'slug' => 'payroll-engine', 'token' => 'HRM-553', 'view' => 'modules/hr/payroll_engine', 'icon' => 'bi-cash-stack'],
+                    ['name' => 'Expense Claims & Reimbursements', 'slug' => 'expense-reimbursements', 'token' => 'HRM-554', 'view' => 'modules/hr/expense_reimbursements', 'icon' => 'bi-receipt-cutoff']
                 ]
             ],
             [
                 'name' => 'Inventory & Warehouses',
                 'icon' => 'bi-boxes',
-                'sequence' => 6,
+                'sequence' => 7,
                 'pages' => [
                     ['name' => 'Warehouses & Bins', 'slug' => 'warehouses-management', 'token' => 'INV-401', 'view' => 'modules/inventory/warehouses', 'icon' => 'bi-building-gear'],
                     ['name' => 'Stock Ledger & Valuation', 'slug' => 'stock-ledger', 'token' => 'INV-402', 'view' => 'modules/inventory/stock_ledger', 'icon' => 'bi-journal-text'],
@@ -233,7 +247,7 @@ class ComprehensiveErpSeeder extends Seeder
             [
                 'name' => 'Manufacturing & MRP',
                 'icon' => 'bi-gear-wide-connected',
-                'sequence' => 7,
+                'sequence' => 8,
                 'pages' => [
                     ['name' => 'Bill of Materials (BOM)', 'slug' => 'bom-management', 'token' => 'MFG-501', 'view' => 'modules/manufacturing/bom', 'icon' => 'bi-diagram-2'],
                     ['name' => 'Work Orders & Operations', 'slug' => 'work-orders', 'token' => 'MFG-502', 'view' => 'modules/manufacturing/work_orders', 'icon' => 'bi-cpu'],
@@ -244,7 +258,7 @@ class ComprehensiveErpSeeder extends Seeder
             [
                 'name' => 'India Tax & GST Compliance',
                 'icon' => 'bi-receipt',
-                'sequence' => 8,
+                'sequence' => 9,
                 'pages' => [
                     ['name' => 'HSN/SAC & GST Rates', 'slug' => 'gst-rates-hsn', 'token' => 'TAX-601', 'view' => 'modules/tax_compliance/gst_rates', 'icon' => 'bi-hash'],
                     ['name' => 'E-Invoicing & E-Way Bill Hub', 'slug' => 'einvoice-ewaybill-hub', 'token' => 'TAX-602', 'view' => 'modules/tax_compliance/einvoice_ewaybill', 'icon' => 'bi-qr-code-scan'],
@@ -255,16 +269,17 @@ class ComprehensiveErpSeeder extends Seeder
             [
                 'name' => 'Master Data Architecture',
                 'icon' => 'bi-sliders',
-                'sequence' => 9,
+                'sequence' => 10,
                 'pages' => [
                     ['name' => 'Master Data Catalog', 'slug' => 'master-catalog', 'token' => 'MST-701', 'view' => 'modules/master_data/master_catalog', 'icon' => 'bi-folder2-open'],
-                    ['name' => 'Security & Audit Controls', 'slug' => 'security-audit-controls', 'token' => 'MST-702', 'view' => 'modules/master_data/security_audit', 'icon' => 'bi-shield-lock']
+                    ['name' => 'Security & Audit Controls', 'slug' => 'security-audit-controls', 'token' => 'MST-702', 'view' => 'modules/master_data/security_audit', 'icon' => 'bi-shield-lock'],
+                    ['name' => 'System Health & Reliability', 'slug' => 'system-health', 'token' => 'MST-703', 'view' => 'modules/master_data/system_health', 'icon' => 'bi-cpu-fill']
                 ]
             ],
             [
                 'name' => 'Workflows & Concurrency',
                 'icon' => 'bi-diagram-3',
-                'sequence' => 10,
+                'sequence' => 11,
                 'pages' => [
                     ['name' => 'Multi-Level Approval Center', 'slug' => 'approval-center', 'token' => 'WFK-801', 'view' => 'modules/workflows_approvals/approval_center', 'icon' => 'bi-check-circle'],
                     ['name' => 'Concurrency & Posting Controls', 'slug' => 'concurrency-posting-controls', 'token' => 'WFK-802', 'view' => 'modules/workflows_approvals/concurrency_controls', 'icon' => 'bi-lock-fill']
@@ -273,7 +288,7 @@ class ComprehensiveErpSeeder extends Seeder
             [
                 'name' => 'Reporting & Analytics Hub',
                 'icon' => 'bi-bar-chart-line',
-                'sequence' => 11,
+                'sequence' => 12,
                 'pages' => [
                     ['name' => 'Executive Analytics Hub', 'slug' => 'executive-analytics-hub', 'token' => 'RPT-901', 'view' => 'modules/reporting_hub/analytics_hub', 'icon' => 'bi-speedometer2']
                 ]
