@@ -114,10 +114,29 @@ class DynamicCrudService
     }
 
     /**
+     * Protected Table Classifications
+     */
+    protected array $immutableTables = [
+        'general_ledger', 'journal_entries', 'journal_entry_lines',
+        'stock_ledger', 'audit_logs', 'security_audit'
+    ];
+
+    protected array $controlledTables = [
+        'sales_invoices', 'purchase_invoices', 'payments'
+    ];
+
+    /**
      * Validate and update an existing record.
      */
     public function updateRecord(object $pageConfig, $id, array $data, string $ip, string $userAgent): bool
     {
+        $table = $pageConfig->db_table;
+
+        // Protection Check 1: Immutable Financial Ledgers
+        if (in_array($table, $this->immutableTables)) {
+            throw new \InvalidArgumentException("Direct modification of posted financial ledger '{$table}' via generic CRUD is strictly prohibited. Use Credit/Debit Notes or Reversal Vouchers.");
+        }
+
         $validatedData = $this->validateData($pageConfig, $data, $id);
 
         // Retrieve original record for audit logging
@@ -157,6 +176,18 @@ class DynamicCrudService
      */
     public function deleteRecord(object $pageConfig, $id, string $ip, string $userAgent): bool
     {
+        $table = $pageConfig->db_table;
+
+        // Protection Check 1: Immutable Financial Ledgers
+        if (in_array($table, $this->immutableTables)) {
+            throw new \InvalidArgumentException("Direct deletion of financial ledger '{$table}' via generic CRUD is strictly prohibited.");
+        }
+
+        // Protection Check 2: Controlled Billing Tables
+        if (in_array($table, $this->controlledTables)) {
+            throw new \InvalidArgumentException("Direct deletion of controlled document '{$table}' via generic CRUD is prohibited. Change status to Void or Cancelled.");
+        }
+
         // Retrieve original record for audit logging
         $oldRecord = $this->repository->find($pageConfig->db_table, $pageConfig->primary_key, $id);
 

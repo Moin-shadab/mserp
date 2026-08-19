@@ -74,6 +74,80 @@ Route::get('/logout', function (Request $request) {
     return redirect('/login');
 });
 
+// API-First Public Health Diagnostics (/api/v1/health)
+Route::get('/api/v1/health', function () {
+    $startTime = microtime(true);
+    $checks = [];
+    $isHealthy = true;
+
+    // 1. Live Database Ping & Latency
+    try {
+        $dbStart = microtime(true);
+        DB::select('SELECT 1');
+        $dbLatencyMs = round((microtime(true) - $dbStart) * 1000, 2);
+        $checks['database'] = [
+            'status' => 'ok',
+            'connection' => DB::connection()->getDriverName(),
+            'latency_ms' => $dbLatencyMs
+        ];
+    } catch (\Exception $e) {
+        $isHealthy = false;
+        $checks['database'] = [
+            'status' => 'failed',
+            'error' => $e->getMessage()
+        ];
+    }
+
+    // 2. Live Cache Read/Write Check
+    try {
+        \Illuminate\Support\Facades\Cache::put('health_check_ping', 'ok', 10);
+        $cacheVal = \Illuminate\Support\Facades\Cache::get('health_check_ping');
+        if ($cacheVal === 'ok') {
+            $checks['cache'] = ['status' => 'ok', 'driver' => config('cache.default')];
+        } else {
+            $isHealthy = false;
+            $checks['cache'] = ['status' => 'failed', 'driver' => config('cache.default')];
+        }
+    } catch (\Exception $e) {
+        $isHealthy = false;
+        $checks['cache'] = ['status' => 'failed', 'error' => $e->getMessage()];
+    }
+
+    // 3. Live Storage Disk Check
+    try {
+        $freeBytes = @disk_free_space(storage_path());
+        $freeGb = $freeBytes ? round($freeBytes / (1024 * 1024 * 1024), 2) : 0;
+        $checks['storage'] = [
+            'status' => $freeGb > 1.0 ? 'ok' : 'degraded',
+            'free_space_gb' => $freeGb
+        ];
+    } catch (\Exception $e) {
+        $checks['storage'] = ['status' => 'unknown', 'error' => $e->getMessage()];
+    }
+
+    // 4. Live Queue Workers & Migration State
+    try {
+        $pendingJobs = DB::table('jobs')->count();
+        $failedJobs = Schema::hasTable('failed_jobs') ? DB::table('failed_jobs')->count() : 0;
+        $checks['queue'] = [
+            'status' => 'ok',
+            'pending_jobs' => $pendingJobs,
+            'failed_jobs' => $failedJobs
+        ];
+    } catch (\Exception $e) {
+        $checks['queue'] = ['status' => 'degraded', 'error' => $e->getMessage()];
+    }
+
+    $totalLatencyMs = round((microtime(true) - $startTime) * 1000, 2);
+
+    return response()->json([
+        'status' => $isHealthy ? 'ok' : 'degraded',
+        'timestamp' => now()->toIso8601String(),
+        'execution_time_ms' => $totalLatencyMs,
+        'checks' => $checks
+    ], $isHealthy ? 200 : 503);
+});
+
 /*
 |--------------------------------------------------------------------------
 | Authenticated ERP System Routes
@@ -134,20 +208,6 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/api/erp/purchase/3way-match', [\App\Http\Controllers\ErpModuleController::class, 'matchThreeWay']);
     Route::post('/api/erp/stock/record', [\App\Http\Controllers\ErpModuleController::class, 'recordStock']);
     Route::post('/api/erp/tax/calculate-gst', [\App\Http\Controllers\ErpModuleController::class, 'calculateGst']);
-
-    // API-First Versioned Endpoints (/api/v1/*)
-    Route::get('/api/v1/health', function () {
-        return response()->json([
-            'status' => 'UP',
-            'timestamp' => now()->toIso8601String(),
-            'database' => 'Connected (MySQL/SQLite)',
-            'queue' => 'Active (Redis/Database)',
-            'disk_storage' => 'Healthy (Free space > 20GB)',
-            'rate_limit_policy' => '1000 req/min (System token bypass enabled)',
-            'idempotency' => 'Enforced via X-Idempotency-Key header',
-            'audit_hash_chaining' => 'SHA-256 Tamper-Evident Active'
-        ]);
-    });
 
     Route::get('/api/v1/webhooks', function () {
         return response()->json([
