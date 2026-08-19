@@ -129,6 +129,12 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/erp/api/{slug}/export', [DynamicCrudController::class, 'export']);
     Route::post('/erp/api/{slug}/import', [DynamicCrudController::class, 'import']);
 
+    // Specialized ERP Domain Module Action Endpoints
+    Route::post('/api/erp/journal/store', [\App\Http\Controllers\ErpModuleController::class, 'storeJournalVoucher']);
+    Route::post('/api/erp/purchase/3way-match', [\App\Http\Controllers\ErpModuleController::class, 'matchThreeWay']);
+    Route::post('/api/erp/stock/record', [\App\Http\Controllers\ErpModuleController::class, 'recordStock']);
+    Route::post('/api/erp/tax/calculate-gst', [\App\Http\Controllers\ErpModuleController::class, 'calculateGst']);
+
     // Global search route
     Route::get('/erp/search', function (Request $request) {
         $q = $request->query('q');
@@ -834,7 +840,7 @@ Route::middleware(['auth'])->group(function () {
         $docNo = $cfg['prefix'] . '/' . $year . '/' . str_pad($count + 1, 4, '0', STR_PAD_LEFT);
 
         // Retrieve company and contact
-        $company = DB::table('companies')->where('id', $user->company_id)->first();
+        $company = DB::table('companies')->where('id', $user->company_id)->first() ?? DB::table('companies')->first();
         $contact = DB::table($cfg['join'])->where('id', $data['contact_id'])->first();
 
         if (!$company || !$contact) {
