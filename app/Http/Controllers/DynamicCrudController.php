@@ -28,10 +28,6 @@ class DynamicCrudController extends Controller
             return redirect('/');
         }
 
-        if (in_array($slug, ['sales-invoices', 'sales-orders', 'purchase-orders', 'purchase-invoices', 'sales-quotations'])) {
-            $this->ensureBillingTablesExist();
-        }
-
         $pageConfig = $this->crudService->getPageConfig($slug);
         
         if (!$pageConfig) {

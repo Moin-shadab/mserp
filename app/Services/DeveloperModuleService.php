@@ -15,9 +15,7 @@ class DeveloperModuleService
     public function analyzeQuery(string $sql): array
     {
         $sql = trim($sql);
-        if (empty($sql)) {
-            throw new \Exception('SQL query cannot be empty.');
-        }
+        SqlSecurityAnalyzer::validateSelectQuery($sql);
 
         // Detect base table name using basic SQL regex
         $tableName = null;

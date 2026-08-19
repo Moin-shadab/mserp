@@ -10,8 +10,17 @@ class ComprehensiveErpSeeder extends Seeder
 {
     public function run(): void
     {
-        $acmeCompany = DB::table('companies')->where('code', 'ACME')->first();
-        $companyId = $acmeCompany ? $acmeCompany->id : 1;
+        $acmeCompany = DB::table('companies')->first();
+        if (!$acmeCompany) {
+            $companyId = DB::table('companies')->insertGetId([
+                'name' => 'ACME Enterprises Pvt Ltd',
+                'code' => 'ACME',
+                'created_at' => now(),
+                'updated_at' => now()
+            ]);
+        } else {
+            $companyId = $acmeCompany->id;
+        }
         $branch = DB::table('branches')->where('company_id', $companyId)->first();
         $branchId = $branch ? $branch->id : null;
 
@@ -171,10 +180,19 @@ class ComprehensiveErpSeeder extends Seeder
             ['module' => 'delivery_note', 'prefix' => 'DN/2026/', 'current_number' => 4001, 'padding' => 4],
             ['module' => 'grn', 'prefix' => 'GRN/2026/', 'current_number' => 5001, 'padding' => 4]
         ];
-        foreach ($series as $s) {
-            DB::table('numbering_series')->updateOrInsert(
-                ['module' => $s['module']],
-                array_merge($s, ['created_at' => now(), 'updated_at' => now()])
+        // 6.1 Statutory & Payroll Rules
+        $statRules = [
+            ['rule_key' => 'PF_EMPLOYEE_RATE', 'rule_name' => 'Provident Fund (Employee)', 'percentage' => 12.00, 'description' => 'Employee PF Deduction Rate (12%)'],
+            ['rule_key' => 'ESI_EMPLOYEE_RATE', 'rule_name' => 'Employee State Insurance', 'percentage' => 0.75, 'salary_threshold' => 21000.00, 'description' => 'ESI Deduction Rate (0.75%)'],
+            ['rule_key' => 'HRA_RATE', 'rule_name' => 'House Rent Allowance', 'percentage' => 40.00, 'description' => 'HRA Allowance Rate (40%)'],
+            ['rule_key' => 'PT_MONTHLY_FLAT', 'rule_name' => 'Professional Tax', 'fixed_amount' => 200.00, 'description' => 'Flat Monthly Professional Tax'],
+            ['rule_key' => 'TDS_194C', 'rule_name' => 'TDS Section 194C (Contractors)', 'percentage' => 1.00, 'description' => 'TDS Rate for Contractors (1%)'],
+            ['rule_key' => 'TDS_194J', 'rule_name' => 'TDS Section 194J (Professionals)', 'percentage' => 10.00, 'description' => 'TDS Rate for Professional Fees (10%)'],
+        ];
+        foreach ($statRules as $r) {
+            DB::table('statutory_rules')->updateOrInsert(
+                ['rule_key' => $r['rule_key']],
+                array_merge($r, ['country' => 'IND', 'created_at' => now(), 'updated_at' => now()])
             );
         }
 
