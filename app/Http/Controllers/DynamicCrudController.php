@@ -1045,6 +1045,28 @@ class DynamicCrudController extends Controller
             });
         }
 
+        // 4.7 Column Safety Checks on existing tables
+        foreach (['sales_orders', 'purchase_orders', 'sales_quotations', 'purchase_invoices'] as $tName) {
+            if (Schema::hasTable($tName)) {
+                $cols = ['branch_id', 'amount', 'tax', 'cgst', 'sgst', 'igst', 'discount', 'billing_address', 'shipping_address', 'payment_terms', 'quote_no', 'quote_date'];
+                foreach ($cols as $c) {
+                    if (!Schema::hasColumn($tName, $c)) {
+                        Schema::table($tName, function ($table) use ($c) {
+                            if (in_array($c, ['amount', 'tax', 'cgst', 'sgst', 'igst', 'discount'])) {
+                                $table->decimal($c, 15, 2)->default(0.00);
+                            } else if (in_array($c, ['billing_address', 'shipping_address'])) {
+                                $table->text($c)->nullable();
+                            } else if ($c === 'quote_date') {
+                                $table->date($c)->nullable();
+                            } else {
+                                $table->string($c)->nullable();
+                            }
+                        });
+                    }
+                }
+            }
+        }
+
         // 5. Update the pages table so that sales-invoices uses the custom view
         DB::table('pages')
             ->where('slug', 'sales-invoices')
