@@ -325,10 +325,10 @@
     }
 
     // HTML5 Drag and Drop Handlers for Dashboard Widgets
-    let dragSrcElement = null;
+    window.dragSrcElement = window.dragSrcElement || null;
 
     function handleDragStart(e) {
-        dragSrcElement = e.currentTarget;
+        window.dragSrcElement = e.currentTarget;
         e.dataTransfer.effectAllowed = 'move';
         e.dataTransfer.setData('text/plain', e.currentTarget.getAttribute('data-widget-id'));
         e.currentTarget.classList.add('opacity-50', 'border-dashed');
@@ -348,18 +348,18 @@
         }
         const targetElement = e.currentTarget;
 
-        if (dragSrcElement && dragSrcElement !== targetElement) {
+        if (window.dragSrcElement && window.dragSrcElement !== targetElement) {
             // Check if both elements share the same parent row container
-            if (dragSrcElement.parentNode === targetElement.parentNode) {
-                const parent = dragSrcElement.parentNode;
+            if (window.dragSrcElement.parentNode === targetElement.parentNode) {
+                const parent = window.dragSrcElement.parentNode;
                 const children = Array.from(parent.children);
-                const srcIdx = children.indexOf(dragSrcElement);
+                const srcIdx = children.indexOf(window.dragSrcElement);
                 const targetIdx = children.indexOf(targetElement);
 
                 if (srcIdx < targetIdx) {
-                    parent.insertBefore(dragSrcElement, targetElement.nextSibling);
+                    parent.insertBefore(window.dragSrcElement, targetElement.nextSibling);
                 } else {
-                    parent.insertBefore(dragSrcElement, targetElement);
+                    parent.insertBefore(window.dragSrcElement, targetElement);
                 }
 
                 saveDashboardLayout();
