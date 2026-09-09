@@ -33,7 +33,11 @@ class DynamicCrudRepository
         // Apply hierarchy-based row-level access control (RLS)
         if (\Illuminate\Support\Facades\Auth::check()) {
             $currentUser = \Illuminate\Support\Facades\Auth::user();
-            $roleSlug = DB::table('roles')->where('id', $currentUser->role_id)->value('slug');
+            $roleSlug = \App\Services\ErpCacheService::rememberSafe(
+                \App\Services\ErpCacheService::getRoleSlugKey($currentUser->role_id),
+                86400,
+                fn() => DB::table('roles')->where('id', $currentUser->role_id)->value('slug')
+            );
             
             if ($roleSlug !== 'super-admin' && $roleSlug !== 'admin') {
                 if ($table === 'customers') {
@@ -47,11 +51,8 @@ class DynamicCrudRepository
                         $this->applyCustomerRls($sub, $currentUser);
                     });
                 } else {
-                    // Check if other physical table has assigned_user_id for generic RLS
-                    $hasAssignedUser = false;
-                    try {
-                        $hasAssignedUser = Schema::hasColumn($table, 'assigned_user_id');
-                    } catch (\Exception $e) {}
+                    // Check if other physical table has assigned_user_id for generic RLS (Cached in Redis)
+                    $hasAssignedUser = $this->hasColumn($table, 'assigned_user_id');
 
                     if ($hasAssignedUser) {
                         $subordinateIds = $this->getSubordinateUserIds($currentUser->id);
@@ -123,6 +124,24 @@ class DynamicCrudRepository
     }
 
     /**
+     * Check physical column existence with high-speed Redis caching.
+     */
+    public function hasColumn(string $table, string $column): bool
+    {
+        return \App\Services\ErpCacheService::rememberSafe(
+            \App\Services\ErpCacheService::getSchemaColumnKey($table, $column),
+            86400,
+            function () use ($table, $column) {
+                try {
+                    return Schema::hasColumn($table, $column);
+                } catch (\Throwable $e) {
+                    return false;
+                }
+            }
+        );
+    }
+
+    /**
      * Find a record by ID.
      */
     public function find(string $table, string $primaryKey, $id)
@@ -135,11 +154,11 @@ class DynamicCrudRepository
      */
     public function insert(string $table, array $data): int
     {
-        // Add default timestamps if they exist on the physical table
-        if (Schema::hasColumn($table, 'created_at')) {
+        // Add default timestamps if they exist on the physical table (Cached column lookup)
+        if ($this->hasColumn($table, 'created_at')) {
             $data['created_at'] = now();
         }
-        if (Schema::hasColumn($table, 'updated_at')) {
+        if ($this->hasColumn($table, 'updated_at')) {
             $data['updated_at'] = now();
         }
 
@@ -151,7 +170,7 @@ class DynamicCrudRepository
      */
     public function update(string $table, string $primaryKey, $id, array $data): bool
     {
-        if (Schema::hasColumn($table, 'updated_at')) {
+        if ($this->hasColumn($table, 'updated_at')) {
             $data['updated_at'] = now();
         }
 
@@ -176,17 +195,24 @@ class DynamicCrudRepository
 
     /**
      * Recursively fetch all subordinate user IDs reporting to a user.
+     * Cached in Redis for 5 minutes to avoid recursive SQL queries.
      */
     public function getSubordinateUserIds(int $userId): array
     {
-        $subordinates = DB::table('users')->where('reports_to_id', $userId)->pluck('id')->toArray();
-        $allSubordinates = $subordinates;
-        
-        foreach ($subordinates as $subId) {
-            $allSubordinates = array_merge($allSubordinates, $this->getSubordinateUserIds($subId));
-        }
-        
-        return array_unique($allSubordinates);
+        return \App\Services\ErpCacheService::rememberSafe(
+            "erp:subordinates:{$userId}",
+            300,
+            function () use ($userId) {
+                $subordinates = DB::table('users')->where('reports_to_id', $userId)->pluck('id')->toArray();
+                $allSubordinates = $subordinates;
+                
+                foreach ($subordinates as $subId) {
+                    $allSubordinates = array_merge($allSubordinates, $this->getSubordinateUserIds($subId));
+                }
+                
+                return array_unique($allSubordinates);
+            }
+        );
     }
 
     /**
@@ -194,7 +220,11 @@ class DynamicCrudRepository
      */
     protected function applyCustomerRls($query, $currentUser)
     {
-        $roleSlug = DB::table('roles')->where('id', $currentUser->role_id)->value('slug');
+        $roleSlug = \App\Services\ErpCacheService::rememberSafe(
+            \App\Services\ErpCacheService::getRoleSlugKey($currentUser->role_id),
+            86400,
+            fn() => DB::table('roles')->where('id', $currentUser->role_id)->value('slug')
+        );
         if ($roleSlug === 'super-admin' || $roleSlug === 'admin') {
             return;
         }

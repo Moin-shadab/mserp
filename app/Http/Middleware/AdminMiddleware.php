@@ -23,7 +23,11 @@ class AdminMiddleware
             return redirect('/login');
         }
 
-        $roleSlug = DB::table('roles')->where('id', $user->role_id)->value('slug');
+        $roleSlug = \App\Services\ErpCacheService::rememberSafe(
+            \App\Services\ErpCacheService::getRoleSlugKey($user->role_id),
+            86400,
+            fn() => DB::table('roles')->where('id', $user->role_id)->value('slug')
+        );
         if (!in_array($roleSlug, ['super-admin', 'admin'])) {
             if ($request->expectsJson() || $request->ajax()) {
                 return response()->json(['error' => 'Unauthorized action.'], 403);

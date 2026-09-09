@@ -509,6 +509,7 @@ Route::middleware(['auth'])->group(function () {
                     'updated_at' => now()
                 ]);
             }
+            \App\Services\ErpCacheService::bumpPermissionVersion();
 
             return response()->json(['success' => true]);
         });
@@ -618,6 +619,7 @@ Route::middleware(['auth'])->group(function () {
             $data['updated_at'] = now();
 
             DB::table('users')->where('id', $id)->update($data);
+            \App\Services\ErpCacheService::clearUserContext($id);
 
             return response()->json(['success' => true]);
         });
@@ -697,6 +699,8 @@ Route::middleware(['auth'])->group(function () {
                     'updated_at' => now()
                 ]);
             }
+            \App\Services\ErpCacheService::clearUserContext($userId);
+            \App\Services\ErpCacheService::bumpPermissionVersion();
 
             return response()->json(['success' => true]);
         });
@@ -730,6 +734,8 @@ Route::middleware(['auth'])->group(function () {
                     'updated_at' => now(),
                 ]);
             }
+            \App\Services\ErpCacheService::clearUserContext($targetUserId);
+            \App\Services\ErpCacheService::bumpPermissionVersion();
 
             return response()->json(['success' => true]);
         });

@@ -8,6 +8,8 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Schema;
 
+use App\Services\ErpCacheService;
+
 class DynamicCrudService
 {
     protected $repository;
@@ -18,14 +20,20 @@ class DynamicCrudService
     }
 
     /**
-     * Get a page configuration by slug.
+     * Get a page configuration by slug (Cached in Redis for blazing-fast page loads).
      */
     public function getPageConfig(string $slug)
     {
-        return DB::table('pages')
-            ->where('slug', $slug)
-            ->where('is_active', true)
-            ->first();
+        return ErpCacheService::rememberSafe(
+            ErpCacheService::getPageConfigKey($slug),
+            86400,
+            function () use ($slug) {
+                return DB::table('pages')
+                    ->where('slug', $slug)
+                    ->where('is_active', true)
+                    ->first();
+            }
+        );
     }
 
     /**

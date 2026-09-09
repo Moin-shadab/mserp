@@ -486,8 +486,11 @@
 
         function populateSelect(id, list, selectedId) {
             const select = document.getElementById(id);
+            if (!select) return;
             select.innerHTML = '';
-            list.forEach(item => {
+            const items = Array.isArray(list) ? list : Object.values(list || {});
+            items.forEach(item => {
+                if (!item || item.id === undefined) return;
                 const opt = document.createElement('option');
                 opt.value = item.id;
                 opt.textContent = item.name;
@@ -546,15 +549,21 @@
         // Render dynamic modules and pages in the navigation panel
         function renderDynamicNavigation(modules) {
             const nav = document.getElementById('dynamic-nav');
+            if (!nav) return;
             nav.innerHTML = '';
 
-            modules.forEach(mod => {
+            const moduleList = Array.isArray(modules) ? modules : Object.values(modules || {});
+
+            moduleList.forEach(mod => {
+                if (!mod || !mod.name) return;
                 const header = document.createElement('div');
                 header.className = 'menu-header';
                 header.textContent = mod.name;
                 nav.appendChild(header);
 
-                mod.pages.forEach(p => {
+                const pageList = Array.isArray(mod.pages) ? mod.pages : Object.values(mod.pages || {});
+                pageList.forEach(p => {
+                    if (!p || !p.slug) return;
                     const item = document.createElement('a');
                     item.href = '#';
                     item.className = 'menu-item';
