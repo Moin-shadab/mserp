@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
+use App\Services\ErpCacheService;
 
 class DeveloperModuleService
 {
@@ -190,6 +191,8 @@ class DeveloperModuleService
         }
 
         $this->assignDefaultPermissions($pageId);
+        ErpCacheService::clearPageConfig($pageSlug);
+        ErpCacheService::clearUserContext();
 
         return [
             'success' => true,
@@ -286,6 +289,8 @@ class DeveloperModuleService
         }
 
         $this->assignDefaultPermissions($pageId);
+        ErpCacheService::clearPageConfig($pageSlug);
+        ErpCacheService::clearUserContext();
 
         return [
             'success' => true,

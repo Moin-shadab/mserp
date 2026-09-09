@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Services\DynamicCrudService;
+use App\Services\ErpCacheService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -1205,7 +1206,7 @@ class DynamicCrudController extends Controller
     }
 
     /**
-     * Internal helper to resolve page permissions.
+     * Internal helper to resolve page permissions (Cached in Redis per user and page).
      */
     protected function checkPermissions(int $pageId): array
     {
@@ -1217,46 +1218,52 @@ class DynamicCrudController extends Controller
             ];
         }
 
-        // Fetch user's role slug
-        $role = DB::table('roles')->where('id', $user->role_id)->first();
-        if ($role && $role->slug === 'super-admin') {
-            // Super Admin has full override permission
-            return [
-                'can_view' => true, 'can_create' => true, 'can_edit' => true, 'can_delete' => true,
-                'can_export' => true, 'can_print' => true, 'can_approve' => true, 'can_reject' => true
-            ];
-        }
+        return ErpCacheService::rememberSafe(
+            ErpCacheService::getUserPermissionKey($user->id, $pageId),
+            900,
+            function () use ($user, $pageId) {
+                // Fetch user's role slug
+                $role = DB::table('roles')->where('id', $user->role_id)->first();
+                if ($role && $role->slug === 'super-admin') {
+                    // Super Admin has full override permission
+                    return [
+                        'can_view' => true, 'can_create' => true, 'can_edit' => true, 'can_delete' => true,
+                        'can_export' => true, 'can_print' => true, 'can_approve' => true, 'can_reject' => true
+                    ];
+                }
 
-        // Check user-specific permissions first
-        $perms = DB::table('user_permissions')
-            ->where('user_id', $user->id)
-            ->where('page_id', $pageId)
-            ->first();
+                // Check user-specific permissions first
+                $perms = DB::table('user_permissions')
+                    ->where('user_id', $user->id)
+                    ->where('page_id', $pageId)
+                    ->first();
 
-        if (!$perms) {
-            // Fall back to role-based permissions
-            $perms = DB::table('role_permissions')
-                ->where('role_id', $user->role_id)
-                ->where('page_id', $pageId)
-                ->first();
-        }
+                if (!$perms) {
+                    // Fall back to role-based permissions
+                    $perms = DB::table('role_permissions')
+                        ->where('role_id', $user->role_id)
+                        ->where('page_id', $pageId)
+                        ->first();
+                }
 
-        if (!$perms) {
-            return [
-                'can_view' => false, 'can_create' => false, 'can_edit' => false, 'can_delete' => false,
-                'can_export' => false, 'can_print' => false, 'can_approve' => false, 'can_reject' => false
-            ];
-        }
+                if (!$perms) {
+                    return [
+                        'can_view' => false, 'can_create' => false, 'can_edit' => false, 'can_delete' => false,
+                        'can_export' => false, 'can_print' => false, 'can_approve' => false, 'can_reject' => false
+                    ];
+                }
 
-        return [
-            'can_view' => (bool) $perms->can_view,
-            'can_create' => (bool) $perms->can_create,
-            'can_edit' => (bool) $perms->can_edit,
-            'can_delete' => (bool) $perms->can_delete,
-            'can_export' => (bool) $perms->can_export,
-            'can_print' => (bool) $perms->can_print,
-            'can_approve' => (bool) $perms->can_approve,
-            'can_reject' => (bool) $perms->can_reject,
-        ];
+                return [
+                    'can_view' => (bool) $perms->can_view,
+                    'can_create' => (bool) $perms->can_create,
+                    'can_edit' => (bool) $perms->can_edit,
+                    'can_delete' => (bool) $perms->can_delete,
+                    'can_export' => (bool) $perms->can_export,
+                    'can_print' => (bool) $perms->can_print,
+                    'can_approve' => (bool) $perms->can_approve,
+                    'can_reject' => (bool) $perms->can_reject,
+                ];
+            }
+        );
     }
 }
