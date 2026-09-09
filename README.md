@@ -353,5 +353,6 @@ Contributions are welcome! Please submit a Pull Request or open an Issue on GitH
 This software is released under the **[MIT License](LICENSE)**.
 
 <div align="center">
-  <sub>Engineered with precision by <strong>Moin Shadab</strong> & the MS ERP Open-Source Community.</sub>
+
+  <sub>Built with ❤️ by Moin Shadab & the MS ERP Engineering Team. Powered by Laravel 13, PHP 8.3+, Bootstrap 5, Vite, & MySQL.</sub>
 </div>
